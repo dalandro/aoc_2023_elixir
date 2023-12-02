@@ -1,0 +1,212 @@
+# Advent of Code - Day 2
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"2","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "2", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse(input) do
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input ""
+  @expected nil
+
+  test "parse test" do
+    actual = parse(@input)
+    assert actual == @expected
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn game_string ->
+      game_hash = input_to_hash(game_string)
+      IO.inspect(game_string)
+      IO.inspect(game_hash)
+
+      if possible?(game_hash) do
+        IO.puts(game_id(game_string))
+        IO.puts("")
+        game_id(game_string)
+      else
+        IO.puts("")
+        0
+      end
+    end)
+    |> Enum.sum()
+  end
+
+  defp input_to_hash(game_string) do
+    %{
+      red: counts_of(game_string, "red"),
+      green: counts_of(game_string, "green"),
+      blue: counts_of(game_string, "blue")
+    }
+  end
+
+  defp counts_of(game_string, color) do
+    Regex.scan(~r/(\d+) #{color}/, game_string)
+    |> Enum.map(fn matches ->
+      Enum.at(matches, 1) |> String.to_integer()
+    end)
+  end
+
+  defp possible?(bag, red \\ 12, green \\ 13, blue \\ 14) do
+    Enum.all?(bag[:red], &(&1 <= red)) &&
+      Enum.all?(bag[:green], &(&1 <= green)) &&
+      Enum.all?(bag[:blue], &(&1 <= blue))
+  end
+
+  defp game_id(game_string) do
+    Regex.run(~r/Game (\d+):/, game_string)
+    |> List.last()
+    |> String.to_integer()
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @input """
+  Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+  Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
+  Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
+  Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
+  Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
+  """
+  @expected 8
+
+  test "simple example" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+
+  test "consider semi-colons" do
+    actual = run("Game 3: 8 green, 6 blue, 11 red; 5 blue, 4 red, 10 green; 5 green, 1 red")
+    assert actual == 3
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input) do
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @input """
+  two1nine
+  eightwothree
+  abcone2threexyz
+  xtwone3four
+  4nineeightseven2
+  zoneight234
+  7pqrstsixteen
+  """
+  @expected 281
+
+  test "part two" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+
+  test "overlapping strings" do
+    actual = run("sevenine")
+    assert actual == 79
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":3736,"stamp":{"token":"XCP.Q81lhbrCb3y1GQmT_d0zOs04zE2sCwJEn7lG5OJaEiSNMhpWlYtAyIyLMCI0y81PYA8HSW4om34QPziY8GlrUbef9F06CNHh-2tO5se5uVukRyfCgPc","version":2}} -->
