@@ -135,11 +135,6 @@ defmodule PartOneTest do
     actual = run(@input)
     assert actual == @expected
   end
-
-  test "consider semi-colons" do
-    actual = run("Game 3: 8 green, 6 blue, 11 red; 5 blue, 4 red, 10 green; 5 green, 1 red")
-    assert actual == 3
-  end
 end
 
 ExUnit.run()
@@ -165,6 +160,32 @@ defmodule PartTwo do
   end
 
   def run(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn game_string ->
+      game_hash = input_to_hash(game_string)
+      Map.values(game_hash) |> Enum.product()
+    end)
+    |> Enum.sum()
+  end
+
+  defp input_to_hash(game_string) do
+    %{
+      red: minimum_bag_count_for(game_string, "red"),
+      green: minimum_bag_count_for(game_string, "green"),
+      blue: minimum_bag_count_for(game_string, "blue")
+    }
+  end
+
+  defp minimum_bag_count_for(game_string, color) do
+    counts_of(game_string, color) |> Enum.max() || 0
+  end
+
+  defp counts_of(game_string, color) do
+    Regex.scan(~r/(\d+) #{color}/, game_string)
+    |> Enum.map(fn matches ->
+      Enum.at(matches, 1) |> String.to_integer()
+    end)
   end
 end
 ```
@@ -179,24 +200,17 @@ defmodule PartTwoTest do
   import PartTwo
 
   @input """
-  two1nine
-  eightwothree
-  abcone2threexyz
-  xtwone3four
-  4nineeightseven2
-  zoneight234
-  7pqrstsixteen
+  Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+  Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
+  Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
+  Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
+  Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
   """
-  @expected 281
+  @expected 2286
 
-  test "part two" do
+  test "simple example" do
     actual = run(@input)
     assert actual == @expected
-  end
-
-  test "overlapping strings" do
-    actual = run("sevenine")
-    assert actual == 79
   end
 end
 
@@ -209,4 +223,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":3736,"stamp":{"token":"XCP.Q81lhbrCb3y1GQmT_d0zOs04zE2sCwJEn7lG5OJaEiSNMhpWlYtAyIyLMCI0y81PYA8HSW4om34QPziY8GlrUbef9F06CNHh-2tO5se5uVukRyfCgPc","version":2}} -->
+<!-- livebook:{"offset":4438,"stamp":{"token":"XCP.UbYlQcuA769ZljWLe5h79h6dN7azVKOKoZbmNfxevUuE9LqCpJBAAvxtw16MEvRG48zLR8frQpX9Fx8sawjcW-V-pDTF4-rGPEvgsjb7DSYglazQRj4","version":2}} -->
