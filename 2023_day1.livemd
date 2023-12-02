@@ -12,11 +12,11 @@ Mix.install([
 
 ## Puzzle
 
-<!-- livebook:{"attrs":{"day":"1","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"1","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
 
 ```elixir
 {:ok, puzzle_input} =
-  KinoAOC.download_puzzle("2022", "1", System.fetch_env!("LB_AOC_SESSION"))
+  KinoAOC.download_puzzle("2023", "1", System.fetch_env!("LB_AOC_SESSION"))
 ```
 
 ## Parser
@@ -65,6 +65,19 @@ defmodule PartOne do
   end
 
   def run(input) do
+    input_list = String.split(input, "\n", trim: true)
+
+    Enum.map(input_list, fn string ->
+      extract_value(string)
+    end)
+    |> Enum.sum()
+  end
+
+  defp extract_value(string) do
+    digits = Regex.scan(~r/\d/, string)
+    first = hd(digits) |> hd()
+    last = List.last(digits) |> hd()
+    (first <> last) |> String.to_integer()
   end
 end
 ```
@@ -78,10 +91,15 @@ defmodule PartOneTest do
   use ExUnit.Case, async: true
   import PartOne
 
-  @input ""
-  @expected nil
+  @input """
+  1abc2
+  pqr3stu8vwx
+  a1b2c3d4e5f
+  treb7uchet
+  """
+  @expected 142
 
-  test "part one" do
+  test "simple example" do
     actual = run(@input)
     assert actual == @expected
   end
@@ -94,6 +112,7 @@ ExUnit.run()
 
 ```elixir
 PartOne.solve(puzzle_input)
+String.split(puzzle_input, "\n", trim: true)
 ```
 
 <!-- livebook:{"branch_parent_index":2} -->
@@ -110,6 +129,37 @@ defmodule PartTwo do
   end
 
   def run(input) do
+    input_list = String.split(input, "\n", trim: true)
+
+    Enum.map(input_list, fn string ->
+      IO.puts(string <> " : " <> Integer.to_string(extract_value(string)))
+      extract_value(string)
+    end)
+    |> Enum.sum()
+  end
+
+  defp extract_value(string) do
+    matches = Regex.scan(~r/(?=(\d|zero|one|two|three|four|five|six|seven|eight|nine))/, string)
+    first = hd(matches) |> List.last() |> convert_word_to_digit()
+    last = List.last(matches) |> List.last() |> convert_word_to_digit()
+    (first <> last) |> String.to_integer()
+  end
+
+  @word_to_digit %{
+    "zero" => "0",
+    "one" => "1",
+    "two" => "2",
+    "three" => "3",
+    "four" => "4",
+    "five" => "5",
+    "six" => "6",
+    "seven" => "7",
+    "eight" => "8",
+    "nine" => "9"
+  }
+
+  defp convert_word_to_digit(string) do
+    @word_to_digit[string] || string
   end
 end
 ```
@@ -123,12 +173,25 @@ defmodule PartTwoTest do
   use ExUnit.Case, async: true
   import PartTwo
 
-  @input ""
-  @expected nil
+  @input """
+  two1nine
+  eightwothree
+  abcone2threexyz
+  xtwone3four
+  4nineeightseven2
+  zoneight234
+  7pqrstsixteen
+  """
+  @expected 281
 
   test "part two" do
     actual = run(@input)
     assert actual == @expected
+  end
+
+  test "overlapping strings" do
+    actual = run("sevenine")
+    assert actual == 79
   end
 end
 
