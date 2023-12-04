@@ -1,0 +1,283 @@
+# Advent of Code - Day 3
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"3","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "3", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse(input) do
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input ""
+  @expected nil
+
+  test "parse test" do
+    actual = parse(@input)
+    assert actual == @expected
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    rows = split_string_into_rows(input_string)
+    tuples = convert_to_node_tuples(rows)
+    symbol_tuples = get_symbol_tuples(tuples)
+    number_tuples = get_number_tuples(tuples)
+
+    part_cells =
+      Enum.filter(number_tuples, fn {x1, y1, _node, _node_id} ->
+        Enum.any?(symbol_tuples, fn {x2, y2, _node, _node_id} ->
+          x_diff = x1 - x2
+          y_diff = y1 - y2
+
+          -1 <= x_diff && x_diff <= 1 &&
+            -1 <= y_diff && y_diff <= 1
+        end)
+      end)
+
+    Enum.uniq_by(part_cells, fn {x, _y, _, {idx_range, _number}} -> [x, idx_range] end)
+    |> Enum.map(fn {_x, _y, _, {_idx_range, number}} -> String.to_integer(number) end)
+    |> Enum.sum()
+  end
+
+  @spec split_string_into_rows(String.t()) :: [[String.t()]]
+  def split_string_into_rows(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      String.split(line, "", trim: true)
+    end)
+  end
+
+  @type node_id :: {Range.t(), String.t()}
+  @spec convert_to_node_tuples([[String.t()]]) :: [{integer(), integer(), String.t(), node_id}]
+  def convert_to_node_tuples(rows) do
+    Enum.reduce(Enum.with_index(rows), [], fn {nodes, x}, res ->
+      line = Enum.join(nodes)
+
+      number_indexes =
+        Regex.scan(~r/\d+/, line, return: :index)
+        |> Enum.map(fn idx_capture ->
+          {idx, offset} = hd(idx_capture)
+          idx..(idx + offset - 1)
+        end)
+
+      numbers = Regex.scan(~r/\d+/, line) |> Enum.map(fn idx_capture -> hd(idx_capture) end)
+      idx_to_number = Enum.zip(number_indexes, numbers)
+
+      tuples_in_row =
+        Enum.map(Enum.with_index(nodes), fn {node, y} ->
+          idx_number_pair =
+            Enum.find(idx_to_number, fn {range, _number} ->
+              y in range
+            end)
+
+          {x, y, node, idx_number_pair}
+        end)
+
+      res ++ tuples_in_row
+    end)
+  end
+
+  def get_symbol_tuples(tuples) do
+    Enum.filter(tuples, fn {_x, _y, node, _node_id} ->
+      Regex.match?(~r/^(?![0-9]|\.)/, node)
+    end)
+  end
+
+  def get_number_tuples(tuples) do
+    Enum.filter(tuples, fn {_x, _y, node, _node_id} ->
+      is_digit?(node)
+    end)
+  end
+
+  defp is_digit?(string) do
+    Regex.match?(~r/\d/, string)
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @input """
+  467..114..
+  ...*......
+  ..35..633.
+  ......#...
+  617*......
+  .....+.58.
+  ..592.....
+  ......755.
+  ...$.*....
+  .664.598..
+  """
+  @expected 4361
+
+  test "simple example" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    rows = PartOne.split_string_into_rows(input_string)
+    tuples = PartOne.convert_to_node_tuples(rows)
+    gear_tuples = get_gear_tuples(tuples)
+    number_tuples = PartOne.get_number_tuples(tuples)
+
+    cells =
+      Enum.reduce(gear_tuples, [], fn {x1, y1, _node, _node_id}, acc ->
+        close_number_tuples =
+          Enum.filter(number_tuples, fn {x2, y2, _node, _node_id} ->
+            close?(x1, y1, x2, y2)
+          end)
+
+        close_number_tuples_uniq =
+          Enum.uniq_by(close_number_tuples, fn {_x1, _y1, _node, node_id} -> node_id end)
+
+        if Enum.count(close_number_tuples_uniq) == 2 do
+          [close_number_tuples_uniq | acc]
+        else
+          acc
+        end
+      end)
+
+    Enum.map(cells, fn tuple_group ->
+      Enum.map(tuple_group, fn {_x, _y, _node, {_range, number}} ->
+        String.to_integer(number)
+      end)
+      |> Enum.product()
+    end)
+    |> Enum.sum()
+  end
+
+  def get_gear_tuples(tuples) do
+    Enum.filter(tuples, fn {_x, _y, node, _node_id} ->
+      Regex.match?(~r/\*/, node)
+    end)
+  end
+
+  def close?(x1, y1, x2, y2) do
+    x_diff = x1 - x2
+    y_diff = y1 - y2
+
+    -1 <= x_diff && x_diff <= 1 &&
+      -1 <= y_diff && y_diff <= 1
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @input """
+  467..114..
+  ...*......
+  ..35..633.
+  ......#...
+  617*......
+  .....+.58.
+  ..592.....
+  ......755.
+  ...$.*....
+  .664.598..
+  """
+  @expected 467_835
+
+  test "simple example" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":5649,"stamp":{"token":"XCP.8X9yEWAfNEwcq16mNGzm6aEtumZxsbBpGauhxnHVO17V1gPfRUsuxhAL0F2lq-Bpd0F0_Yt4AkLM1P9S7uRR69CUY4qcKGg9QYsGKRBD-DEbHpYkSjM","version":2}} -->

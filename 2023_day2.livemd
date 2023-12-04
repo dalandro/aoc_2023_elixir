@@ -223,4 +223,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":4438,"stamp":{"token":"XCP.UbYlQcuA769ZljWLe5h79h6dN7azVKOKoZbmNfxevUuE9LqCpJBAAvxtw16MEvRG48zLR8frQpX9Fx8sawjcW-V-pDTF4-rGPEvgsjb7DSYglazQRj4","version":2}} -->
+<!-- livebook:{"offset":4438,"stamp":{"token":"XCP.9JHyJmPnYP2b-9snyirfUdkqU8M1myC7oBwX6w36PnLa4Xd7G4vsnC5Z3r2TyUZhxHeKPyaJ-HQyXHHFCXr0TvndEb38Ou6W5nHoyMqCGzJpk_vaFoM","version":2}} -->
