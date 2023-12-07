@@ -12,11 +12,11 @@ Mix.install([
 
 ## Puzzle
 
-<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"4","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"4","session_secret":"AOC_SESSION","year":"2021"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
 
 ```elixir
 {:ok, puzzle_input} =
-  KinoAOC.download_puzzle("2023", "4", System.fetch_env!("LB_AOC_SESSION"))
+  KinoAOC.download_puzzle("2021", "4", System.fetch_env!("LB_AOC_SESSION"))
 ```
 
 ## Parser
@@ -25,7 +25,25 @@ Mix.install([
 
 ```elixir
 defmodule Parser do
+  @spec parse(String.t()) :: [%{integer() => [String.t()]}]
   def parse(input) do
+    String.split(input, "\n", trim: true)
+    |> Enum.map(fn line ->
+      Regex.replace(~r/Card\s+\d+\: /, line, "")
+      |> String.split(" | ")
+      |> Enum.map(fn line ->
+        String.split(line, " ", trim: true) |> Enum.map(&String.to_integer(&1))
+      end)
+      |> (fn data -> [card_number(line)] ++ data end).()
+      |> Enum.zip([:card, :winning, :yours])
+      |> Map.new(fn {val, key} -> {key, val} end)
+    end)
+  end
+
+  defp card_number(line) do
+    Regex.run(~r/Card\s+(\d+)\: /, line)
+    |> Enum.at(1)
+    |> String.to_integer()
   end
 end
 ```
@@ -41,11 +59,20 @@ defmodule ParserTest do
 
   @input """
   Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
-  Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
+  Card     2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
+  Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
+  Card   4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
+  Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
+  Card    6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
   """
+
   @expected [
-    %{winning: [41, 48, 83, 86, 17], yours: [83, 86, 6, 31, 17, 9, 48, 53]},
-    %{winning: [13, 32, 20, 16, 61], yours: [61, 30, 68, 82, 17, 32, 24, 19]}
+    %{card: 1, winning: [41, 48, 83, 86, 17], yours: [83, 86, 6, 31, 17, 9, 48, 53]},
+    %{card: 2, winning: [13, 32, 20, 16, 61], yours: [61, 30, 68, 82, 17, 32, 24, 19]},
+    %{card: 3, winning: [1, 21, 53, 59, 44], yours: [69, 82, 63, 72, 16, 21, 14, 1]},
+    %{card: 4, winning: [41, 92, 73, 84, 69], yours: [59, 84, 76, 51, 58, 5, 54, 83]},
+    %{card: 5, winning: [87, 83, 26, 28, 32], yours: [88, 30, 70, 12, 93, 22, 82, 36]},
+    %{card: 6, winning: [31, 18, 13, 56, 72], yours: [74, 77, 10, 23, 35, 67, 36, 11]}
   ]
 
   test "parse test" do
@@ -71,6 +98,38 @@ defmodule PartOne do
   end
 
   def run(input_string) do
+    input = Parser.parse(input_string)
+
+    Enum.map(input, fn %{winning: winning, yours: yours} ->
+      winners_for_card = find_winning_numbers(winning, yours)
+
+      calculate_points(winners_for_card)
+    end)
+    |> Enum.sum()
+  end
+
+  def find_winning_numbers(winning, yours) do
+    {res, _} =
+      Enum.reduce(yours, {[], winning}, fn num, {res, winning} ->
+        if num in winning do
+          {[num | res], winning -- [num]}
+        else
+          {res, winning}
+        end
+      end)
+
+    res
+  end
+
+  def calculate_points(winners) do
+    cond do
+      Enum.count(winners) == 0 -> 0
+      Enum.count(winners) == 1 -> 1
+      true -> Integer.pow(2, Enum.count(winners) - 1)
+    end
+  end
+
+  def run2(input_string) do
     input_string
   end
 end
@@ -108,6 +167,7 @@ ExUnit.run()
 
 ```elixir
 PartOne.solve(puzzle_input)
+# PartOne.run2(puzzle_input)
 ```
 
 <!-- livebook:{"branch_parent_index":2} -->
@@ -125,6 +185,32 @@ defmodule PartTwo do
 
   def run(input_string) do
     input_string
+    |> Parser.parse()
+    |> wins_per_card()
+    |> won_card_quantities()
+    |> Map.values()
+    |> Enum.sum()
+  end
+
+  defp wins_per_card(input) do
+    Enum.map(input, fn %{card: card, winning: winning, yours: yours} ->
+      winners_for_card = PartOne.find_winning_numbers(winning, yours)
+      %{card: card, wins: Enum.count(winners_for_card)}
+    end)
+  end
+
+  defp won_card_quantities(input) do
+    base_result = Map.new(input, fn %{card: card, wins: wins} -> {card, 1} end)
+
+    Enum.reduce(input, base_result, fn %{card: card, wins: wins}, acc ->
+      if wins >= 1 do
+        Enum.reduce((card + 1)..(card + wins), acc, fn won_card, acc1 ->
+          Map.update(acc1, won_card, 0, fn val -> val + 1 * acc1[card] end)
+        end)
+      else
+        acc
+      end
+    end)
   end
 end
 ```
@@ -146,7 +232,7 @@ defmodule PartTwoTest do
   Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
   Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
   """
-  @expected 467_835
+  @expected 30
 
   test "simple example" do
     actual = run(@input)
@@ -163,4 +249,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":2903,"stamp":{"token":"XCP.CYbv5C5VLNLn7E9nNReUtcWCXfWDkq4F-semnVSclibVjCL175rtuyNiWmnH04l4sP5RlF_sQxj4G5SUuE2dAOSzPf5-51WSihfUGkXT3FQHAJk4HxQ","version":2}} -->
+<!-- livebook:{"offset":5627,"stamp":{"token":"XCP.N1T8tUdN8Rlo7IQ-0iMZte-FMkI4VrEWyQdMnKkVKeavs1APSScNNsT84vCsHfut9vpbwJaHpF1Aumhx0WVEoPiQkX4yJ-RM95rHLkMA0lslWV9zqjA","version":2}} -->
