@@ -1,0 +1,642 @@
+# Advent of Code - Day 5
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"5","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "5", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse_conversion_map(input) do
+    %{
+      seed_to_soil: extract_conversion_map(input, "seed-to-soil"),
+      soil_to_fertilizer: extract_conversion_map(input, "soil-to-fertilizer"),
+      fertilizer_to_water: extract_conversion_map(input, "fertilizer-to-water"),
+      water_to_light: extract_conversion_map(input, "water-to-light"),
+      light_to_temperature: extract_conversion_map(input, "light-to-temperature"),
+      temperature_to_humidity: extract_conversion_map(input, "temperature-to-humidity"),
+      humidity_to_location: extract_conversion_map(input, "humidity-to-location")
+    }
+  end
+
+  def parse_seeds(input) do
+    extract_seeds(input)
+  end
+
+  defp extract_seeds(input) do
+    Regex.scan(~r/seeds:(\s*\d*)+/, input)
+    |> hd()
+    |> hd()
+    |> String.replace(~r/seeds:\s*/, "")
+    |> String.replace(~r/\n+/, "")
+    |> String.split(" ", trim: true)
+    |> Enum.map(&String.to_integer(&1))
+  end
+
+  defp extract_conversion_map(input, map_name) do
+    Regex.scan(~r/(?<=#{map_name} map:)(\n\d+ \d+ \d+)+/, input)
+    |> hd()
+    |> hd()
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn string ->
+      String.split(string, " ", trim: true)
+      |> Enum.map(&String.to_integer(&1))
+      |> List.to_tuple()
+    end)
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input """
+  seeds: 79 14 55 13
+
+  seed-to-soil map:
+  50 98 2
+  52 50 48
+
+  soil-to-fertilizer map:
+  0 15 37
+  37 52 2
+  39 0 15
+
+  fertilizer-to-water map:
+  49 53 8
+  0 11 42
+  42 0 7
+  57 7 4
+
+  water-to-light map:
+  88 18 7
+  18 25 70
+
+  light-to-temperature map:
+  45 77 23
+  81 45 19
+  68 64 13
+
+  temperature-to-humidity map:
+  0 69 1
+  1 0 69
+
+  humidity-to-location map:
+  60 56 37
+  56 93 4
+  """
+
+  @expected %{
+    seed_to_soil: [{50, 98, 2}, {52, 50, 48}],
+    soil_to_fertilizer: [{0, 15, 37}, {37, 52, 2}, {39, 0, 15}],
+    fertilizer_to_water: [{49, 53, 8}, {0, 11, 42}, {42, 0, 7}, {57, 7, 4}],
+    water_to_light: [{88, 18, 7}, {18, 25, 70}],
+    light_to_temperature: [{45, 77, 23}, {81, 45, 19}, {68, 64, 13}],
+    temperature_to_humidity: [{0, 69, 1}, {1, 0, 69}],
+    humidity_to_location: [{60, 56, 37}, {56, 93, 4}]
+  }
+
+  test "parse test" do
+    actual = parse_conversion_map(@input)
+    assert actual == @expected
+  end
+
+  @expected_seeds [79, 14, 55, 13]
+
+  test "parse seeds" do
+    actual = parse_seeds(@input)
+    assert actual == @expected_seeds
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    seeds = Parser.parse_seeds(input_string)
+    conversion_map = Parser.parse_conversion_map(input_string)
+
+    Enum.map(seeds, fn seed -> find_distance_for_seed(seed, conversion_map) end)
+    |> Enum.min()
+  end
+
+  def find_distance_for_seed(seed, conversion_map) do
+    find_dest_for_source(seed, conversion_map.seed_to_soil)
+    |> find_dest_for_source(conversion_map.soil_to_fertilizer)
+    |> find_dest_for_source(conversion_map.fertilizer_to_water)
+    |> find_dest_for_source(conversion_map.water_to_light)
+    |> find_dest_for_source(conversion_map.light_to_temperature)
+    |> find_dest_for_source(conversion_map.temperature_to_humidity)
+    |> find_dest_for_source(conversion_map.humidity_to_location)
+  end
+
+  defp find_dest_for_source(source_val, source_to_dest_map) do
+    Enum.find_value(source_to_dest_map, fn {dest_range_start, source_range_start, range_length} ->
+      if Enum.member?(source_range_start..(source_range_start + range_length - 1), source_val) do
+        dest_range_start + source_val - source_range_start
+      else
+        nil
+      end
+    end) || map_value_when_not_found_in_ranges(source_val)
+  end
+
+  defp map_value_when_not_found_in_ranges(value) do
+    value
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @input """
+  seeds: 79 14 55 13
+
+  seed-to-soil map:
+  50 98 2
+  52 50 48
+
+  soil-to-fertilizer map:
+  0 15 37
+  37 52 2
+  39 0 15
+
+  fertilizer-to-water map:
+  49 53 8
+  0 11 42
+  42 0 7
+  57 7 4
+
+  water-to-light map:
+  88 18 7
+  18 25 70
+
+  light-to-temperature map:
+  45 77 23
+  81 45 19
+  68 64 13
+
+  temperature-to-humidity map:
+  0 69 1
+  1 0 69
+
+  humidity-to-location map:
+  60 56 37
+  56 93 4
+  """
+  @expected 35
+
+  test "simple example" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+
+puzzle_input
+|> String.split("\n", trim: true)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    seed_input = Parser.parse_seeds(input_string)
+    conversion_map = Parser.parse_conversion_map(input_string)
+
+    seed_ranges =
+      Enum.chunk_every(seed_input, 2)
+      |> Enum.map(fn [seed_range_start, seed_range_length] ->
+        seed_range_start..(seed_range_start + seed_range_length - 1)
+      end)
+
+    Enum.reduce(seed_ranges, [], fn seed_range, minimums ->
+      [find_distance_for_seed_range(seed_range, conversion_map) | minimums]
+    end)
+    |> Enum.min()
+  end
+
+  defp find_distance_for_seed_range(seed_range, conversion_map) do
+    [seed_range]
+    |> destination_ranges_for(conversion_map.seed_to_soil)
+    |> destination_ranges_for(conversion_map.soil_to_fertilizer)
+    |> destination_ranges_for(conversion_map.fertilizer_to_water)
+    |> destination_ranges_for(conversion_map.water_to_light)
+    |> destination_ranges_for(conversion_map.light_to_temperature)
+    |> destination_ranges_for(conversion_map.temperature_to_humidity)
+    |> destination_ranges_for(conversion_map.humidity_to_location)
+    |> minimum_distance()
+  end
+
+  def destination_ranges_for(source_ranges, source_to_dest_map) do
+    Enum.reduce(source_ranges, [], fn source_range, all_overlap_ranges ->
+      overlap_ranges_tuple = overlap_ranges_tuple(source_range, source_to_dest_map)
+      [overlap_source_ranges, overlap_ranges] = overlap_ranges_tuple
+
+      gaps_between_source_range_and_mapping_entries =
+        gaps_between_source_range_and_mapping_entries(source_range, overlap_source_ranges)
+
+      unless Enum.empty?(gaps_between_source_range_and_mapping_entries) do
+      end
+
+      gaps_between_source_range_and_mapping_entries ++ overlap_ranges ++ all_overlap_ranges
+    end)
+  end
+
+  def overlap_ranges_tuple(source_range, source_to_dest_map) do
+    Enum.reduce(source_to_dest_map, [[], []], fn {dest_range_start, source_range_start,
+                                                  range_length},
+                                                 [overlap_source_ranges, overlap_dest_ranges] ->
+      equiv_source_range_for_dest_range =
+        source_range_start..(source_range_start + range_length - 1)
+
+      if Range.disjoint?(source_range, equiv_source_range_for_dest_range) do
+        [overlap_source_ranges, overlap_dest_ranges]
+      else
+        source_intersection = intersection(source_range, equiv_source_range_for_dest_range)
+
+        offset =
+          (source_intersection.first - source_range_start)..(source_intersection.last -
+                                                               source_range_start)
+
+        dest_intersection = (dest_range_start + offset.first)..(dest_range_start + offset.last)
+        [[source_intersection | overlap_source_ranges], [dest_intersection | overlap_dest_ranges]]
+      end
+    end)
+  end
+
+  defp gaps_between_source_range_and_mapping_entries(source_range, overlap_source_ranges) do
+    Enum.reduce(overlap_source_ranges, [source_range], fn overlap_source_range, gaps ->
+      Enum.map(gaps, fn gap ->
+        gaps(gap, overlap_source_range)
+      end)
+      |> List.flatten()
+    end)
+  end
+
+  defp intersection(range1_pre, range2_pre) do
+    [range1, range2] = Enum.sort([range1_pre, range2_pre])
+    max(range1.first, range2.first)..min(range1.last, range2.last)
+  end
+
+  def gaps(range1_pre, range2_pre) do
+    [range1, range2] = Enum.sort([range1_pre, range2_pre])
+
+    cond do
+      range1 == range2 ->
+        []
+
+      range1.first < range2.first && range1.last < range2.last ->
+        # overlap
+        [
+          min(range1.first, range2.first)..(max(range1.first, range2.first) - 1),
+          (min(range1.last, range2.last) + 1)..max(range1.last, range2.last)
+        ]
+
+      range1.first == range2.first && range1.last < range2.last ->
+        # overlap but left equal
+        [(min(range1.last, range2.last) + 1)..max(range1.last, range2.last)]
+
+      range1.first < range2.first && range1.last == range2.last ->
+        # overlap but right equal
+        [min(range1.first, range2.first)..(max(range1.first, range2.first) - 1)]
+
+      range2.first > range1.first && range2.last < range1.last ->
+        # right fully contained 
+        [range1.first..(range2.first - 1), (range2.last + 1)..range1.last]
+    end
+  end
+
+  def minimum_distance(ranges) do
+    ranges
+    |> Enum.map(fn first..last -> min(first, last) end)
+    |> Enum.min()
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @input """
+  seeds: 79 14 55 13
+
+  seed-to-soil map:
+  50 98 2
+  52 50 48
+
+  soil-to-fertilizer map:
+  0 15 37
+  37 52 2
+  39 0 15
+
+  fertilizer-to-water map:
+  49 53 8
+  0 11 42
+  42 0 7
+  57 7 4
+
+  water-to-light map:
+  88 18 7
+  18 25 70
+
+  light-to-temperature map:
+  45 77 23
+  81 45 19
+  68 64 13
+
+  temperature-to-humidity map:
+  0 69 1
+  1 0 69
+
+  humidity-to-location map:
+  60 56 37
+  56 93 4
+  """
+  @expected 46
+
+  test "simple example" do
+    actual = run(@input)
+
+    for i <- 0..10_000_000 do
+      assert actual == @expected
+    end
+  end
+
+  describe "find_dest_range_for_source_range/2" do
+    test "seed range 79 14 with seed-to-soil" do
+      # - 79..92 compare with 98..99 -> nothing
+      # - 79..92 compare with 50..97 -> source is 79..92
+      #   ->> turn into dest equiv: 
+      assert 79 == 50 + 29
+      assert 92 == 50 + 42
+      # so its 29 to 42 
+      # (52 + 29)..(52 + 42)
+      # - leftovers for source->dest direct number mapping -> None
+      actual = destination_ranges_for([79..92], [{50, 98, 2}, {52, 50, 48}])
+      assert Enum.sort(actual) == [(52 + 29)..(52 + 42)]
+      assert Enum.sort(actual) == [81..94]
+    end
+
+    test "seed range 79 14 with soil-to-fertilizer" do
+      # - 81..94 compare with 51..51 -> nothing
+      # - 81..94 compare with 52..53 -> nothing
+      # - 81..94 compare with 0..14  -> nothing
+      # - leftovers for source->dest direct number mapping -> 81..94
+      #   ->> equivalent to dest range: 81..94
+      # 15...51, 52..53, 0..14
+      actual = destination_ranges_for([81..94], [{0, 15, 37}, {37, 52, 2}, {39, 0, 15}])
+      assert Enum.sort(actual) == [81..94]
+    end
+
+    test "seed range 79 14 with fertilizer-to-water" do
+      # - 81..94 compare with 53..60 -> nothing
+      # - 81..94 compare with 11..52 -> nothing
+      # - 81..94 compare with 0..6   -> nothing
+      # - 81..94 compare with 7..10  -> nothing
+      # - leftovers for source->dest direct number mapping -> 81..94
+      #   ->> equivalent to dest range: 81..94
+      actual =
+        destination_ranges_for([81..94], [{49, 53, 8}, {0, 11, 42}, {42, 0, 7}, {57, 7, 4}])
+
+      assert Enum.sort(actual) == [81..94]
+    end
+
+    test "seed range 79 14 with water-to-light" do
+      # - 81..94 compare with 18..24 -> nothing
+      # - 81..94 compare with 25..94 -> source is 81..94
+      #   ->> turn into dest equiv: 
+      assert 81 == 25 + 56
+      assert 94 == 25 + 69
+      # so its 56 to 69 
+      # (18 + 56)..(18 + 69)
+      # - leftovers for source->dest direct number mapping -> nothing
+      actual = destination_ranges_for([81..94], [{88, 18, 7}, {18, 25, 70}])
+      assert Enum.sort(actual) == [(18 + 56)..(18 + 69)]
+      assert Enum.sort(actual) == [74..87]
+    end
+
+    test "seed range 79 14 with light-to-temperature" do
+      # - 74..87 compare with 77..99 -> source is 77..87
+      #   ->> turn into dest equiv: 
+      assert 77 == 77 + 0
+      assert 87 == 77 + 10
+      # so its 0 to 10 
+      # (45 + 0)..(45 + 10)
+      # - 74..76 compare with 45..63 -> nothing
+      # - 74..76 compare with 64..76 -> source is 74..76
+      #   ->> turn into dest equiv: 
+      assert 74 == 64 + 10
+      assert 76 == 64 + 12
+      # so its 10 to 12 
+      # (68 + 10)..(68 + 12)
+      # - leftovers for source->dest direct number mapping -> nothing
+      actual = destination_ranges_for([74..87], [{45, 77, 23}, {81, 45, 19}, {68, 64, 13}])
+      assert Enum.sort(actual) == [(45 + 0)..(45 + 10), (68 + 10)..(68 + 12)]
+      assert Enum.sort(actual) == [45..55, 78..80]
+    end
+
+    test "seed range 79 14 with temperature-to-humidity" do
+      # - 45..55 compare with 69..69 -> nothing
+      # - 45..55 compare with 0..68 -> source is 45..55
+      #   ->> turn into dest equiv: 
+      assert 45 == 0 + 45
+      assert 55 == 0 + 55
+      # so its 45 to 55 
+      # (1 + 45)..(1 + 55)
+      # - leftovers for source->dest direct number mapping -> nothing
+
+      # - 78..80 compare with 69..69 -> nothing
+      # - 78..80 compare with 0..68 -> nothing
+      # - leftovers for source->dest direct number mapping -> 78..80
+      actual = destination_ranges_for([45..55, 78..80], [{0, 69, 1}, {1, 0, 69}])
+      assert Enum.sort(actual) == [(1 + 45)..(1 + 55), 78..80]
+      assert Enum.sort(actual) == [46..56, 78..80]
+    end
+
+    test "seed range 79 14 with humidity-to-location" do
+      # - 46..56 compare with 56..92 -> source is 56..56
+      #   ->> turn into dest equiv: 
+      assert 56 == 56 + 0
+      assert 56 == 56 + 0
+      # so its 0 to 0 
+      # (60 + 0)..(60 + 0)
+      # - 46..55 compare with 93..96 -> nothing
+      # - leftovers for source->dest direct number mapping -> 46..55
+
+      # - 78..80 compare with 56..92 -> source is 78..80
+      #   ->> turn into dest equiv: 
+      assert 78 == 56 + 22
+      assert 80 == 56 + 24
+      # so its 22 to 24
+      # (60 + 22)..(60 + 24)
+      # - nothing left compare with 93..96 -> nothing
+      # - leftovers for source->dest direct number mapping -> nothing
+      actual = destination_ranges_for([46..56, 78..80], [{60, 56, 37}, {56, 93, 4}])
+      assert Enum.sort(actual) == [46..55, (60 + 0)..(60 + 0), (60 + 22)..(60 + 24)]
+      assert Enum.sort(actual) == [46..55, 60..60, 82..84]
+    end
+  end
+
+  # describe "gaps/2" do
+  #   test "gaps/2 for left overlap" do
+  #     actual = gaps(10..20, 15..25)
+  #     assert actual == [10..14, 21..25]
+  #   end
+
+  #   test "gaps/2 for left overlap by 1 value" do
+  #     actual = gaps(10..20, 20..25)
+  #     assert actual == [10..19, 21..25]
+  #   end
+
+  #   test "gaps/2 for right overlap" do
+  #     actual = gaps(15..25, 10..20)
+  #     assert Enum.sort(actual) == [10..14, 21..25]
+  #   end
+
+  #   test "gaps/2 for right overlap by 1 value" do
+  #     actual = gaps(20..25, 10..20)
+  #     assert actual == [10..19, 21..25]
+  #   end
+
+  #   test "gaps/2 for left fully contained" do
+  #     actual = gaps(15..20, 10..25)
+  #     assert Enum.sort(actual) == [10..14, 21..25]
+  #   end
+
+  #   test "gaps/2 for left fully contained but equal on one side" do
+  #     actual = gaps(15..20, 15..25)
+  #     assert Enum.sort(actual) == [21..25]
+
+  #     actual = gaps(15..25, 10..25)
+  #     assert Enum.sort(actual) == [10..14]
+  #   end
+
+  #   test "gaps/2 for left fully contained but 1-off on one side" do
+  #     actual = gaps(16..20, 15..25)
+  #     assert Enum.sort(actual) == [15..15, 21..25]
+
+  #     actual = gaps(15..24, 10..25)
+  #     assert Enum.sort(actual) == [10..14, 25..25]
+  #   end
+
+  #   test "gaps/2 for right fully contained" do
+  #     actual = gaps(10..25, 15..20)
+  #     assert Enum.sort(actual) == [10..14, 21..25]
+  #   end
+
+  #   test "gaps/2 for right fully contained but equal on one side" do
+  #     actual = gaps(15..25, 15..20)
+  #     assert Enum.sort(actual) == [21..25]
+
+  #     actual = gaps(10..25, 15..25)
+  #     assert Enum.sort(actual) == [10..14]
+  #   end
+
+  #   test "gaps/2 for right fully contained but 1-off on one side" do
+  #     actual = gaps(15..25, 16..20)
+  #     assert Enum.sort(actual) == [15..15, 21..25]
+
+  #     actual = gaps(10..25, 15..24)
+  #     assert Enum.sort(actual) == [10..14, 25..25]
+  #   end
+
+  #   test "gaps/2 for both equal" do
+  #     actual = gaps(10..20, 10..20)
+  #     assert Enum.sort(actual) == []
+  #   end
+  # end
+
+  describe "minimum_distance/1" do
+    test "correct calculates" do
+      actual = minimum_distance([46..55, 60..60, 82..84])
+      assert minimum_distance([46..55, 60..60, 82..84]) == 46
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+Parser.parse_seeds(puzzle_input)
+Parser.parse_conversion_map(puzzle_input)
+PartTwo.solve(puzzle_input)
+# source_range = 57..69
+# equiv_source_range_for_dest_range = 53..60
+# Range.disjoint?(source_range, equiv_source_range_for_dest_range)
+
+# source_range = 57..69
+# source_to_dest_map = [{49, 53, 8}, {0, 11, 42}, {42, 0, 7}, {57, 7, 4}]
+# PartTwo.overlap_ranges_tuple(source_range,source_to_dest_map)
+```
+
+<!-- livebook:{"offset":17870,"stamp":{"token":"XCP.DWbimkPex1RAg8ctz4CtW9SU8m3QsVTvlSNzrnEos3J__5VZFnl7zOhBcPZk6Mvh1r0HAKSlY_rcXWPQihEGBq5B3U6CIqqtj5r5wQeTTUCSctGTZIY","version":2}} -->
