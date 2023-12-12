@@ -1,0 +1,225 @@
+# Advent of Code - Day 6
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"6","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "6", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse_part1(input) do
+    [time_string, distance_string] = String.split(input, "\n", trim: true)
+    time_values = String.split(time_string, " ", trim: true) |> tl()
+    distance_values = String.split(distance_string, " ", trim: true) |> tl()
+
+    Enum.zip_with(time_values, distance_values, fn time_val, dist_val ->
+      %{time: String.to_integer(time_val), record_distance: String.to_integer(dist_val)}
+    end)
+  end
+
+  def parse_part2(input) do
+    [time_string, distance_string] = String.split(input, "\n", trim: true)
+    time_value = String.split(time_string, " ", trim: true) |> tl() |> Enum.join()
+    distance_value = String.split(distance_string, " ", trim: true) |> tl() |> Enum.join()
+
+    Enum.zip_with([time_value], [distance_value], fn time_val, dist_val ->
+      %{time: String.to_integer(time_val), record_distance: String.to_integer(dist_val)}
+    end)
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input """
+  Time:      7  15   30
+  Distance:  9  40  200
+  """
+
+  @expected_part1 [
+    %{time: 7, record_distance: 9},
+    %{time: 15, record_distance: 40},
+    %{time: 30, record_distance: 200}
+  ]
+
+  test "parse_part1 test" do
+    actual = parse_part1(@input)
+    assert actual == @expected_part1
+  end
+
+  @expected_part2 [%{time: 71530, record_distance: 940_200}]
+
+  test "parse_part2 test" do
+    actual = parse_part2(@input)
+    assert actual == @expected_part2
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    races = Parser.parse_part1(input_string)
+
+    Enum.map(races, fn %{time: time, record_distance: record_distance} ->
+      minimum_hold_time =
+        Enum.find(0..time, fn hold_time ->
+          speed = hold_time
+          distance = (time - hold_time) * speed
+          distance > record_distance
+        end)
+
+      maximum_hold_time =
+        Enum.find(time..0, fn hold_time ->
+          speed = hold_time
+          distance = (time - hold_time) * speed
+          distance > record_distance
+        end)
+
+      Enum.count(minimum_hold_time..maximum_hold_time)
+    end)
+    |> Enum.product()
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @input """
+  Time:      7  15   30
+  Distance:  9  40  200
+  """
+  @expected 288
+
+  test "simple example" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+
+# puzzle_input
+# |> String.split("\n", trim: true)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    races = Parser.parse_part2(input_string)
+
+    Enum.map(races, fn %{time: time, record_distance: record_distance} ->
+      minimum_hold_time =
+        Enum.find(0..time, fn hold_time ->
+          speed = hold_time
+          distance = (time - hold_time) * speed
+          distance > record_distance
+        end)
+
+      maximum_hold_time =
+        Enum.find(time..0, fn hold_time ->
+          speed = hold_time
+          distance = (time - hold_time) * speed
+          distance > record_distance
+        end)
+
+      Enum.count(minimum_hold_time..maximum_hold_time)
+    end)
+    |> Enum.product()
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @input """
+  Time:      7  15   30
+  Distance:  9  40  200
+  """
+  @expected 71503
+
+  test "simple example" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":4553,"stamp":{"token":"XCP.qVdeZZwE-_AVU-CbpFtT50TWCye27NKptg3CJVrTI-3R2K2JJfYm9IqDn-MusXwTeL4LUiIEup9Tssx47CHYPRK3-o8Anl-fN-cZHDxJB0Q_Td4T8ek","version":2}} -->
