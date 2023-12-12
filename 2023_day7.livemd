@@ -1,0 +1,365 @@
+# Advent of Code - Day 7
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"7","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "7", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse_part1(input) do
+    String.split(input, "\n", trim: true)
+    |> Enum.with_index()
+    |> Enum.map(fn {hand_string, index} ->
+      String.split(hand_string, " ", trim: true)
+      |> (fn [hand, bid] -> %{hand_number: index + 1, hand: hand, bid: String.to_integer(bid)} end).()
+    end)
+  end
+
+  def parse_part2(input) do
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input """
+  32T3K 765
+  T55J5 684
+  KK677 28
+  KTJJT 220
+  QQQJA 483
+  """
+
+  @expected_part1 [
+    %{hand_number: 1, hand: "32T3K", bid: 765},
+    %{hand_number: 2, hand: "T55J5", bid: 684},
+    %{hand_number: 3, hand: "KK677", bid: 28},
+    %{hand_number: 4, hand: "KTJJT", bid: 220},
+    %{hand_number: 5, hand: "QQQJA", bid: 483}
+  ]
+
+  test "parse_part1 test" do
+    actual = parse_part1(@input)
+    assert actual == @expected_part1
+  end
+
+  # @expected_part2 [%{time: 71530,  record_distance: 940200}]
+
+  # test "parse_part2 test" do
+  #   actual = parse_part2(@input)
+  #   assert actual == @expected_part2
+  # end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  @rank_name_to_strength %{
+    "five_of_a_kind" => 6,
+    "four_of_a_kind" => 5,
+    "full_house" => 4,
+    "three_of_a_kind" => 3,
+    "two_pair" => 2,
+    "one_pair" => 1
+  }
+
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    hands = Parser.parse_part1(input_string)
+
+    sort_by_rank_descending(hands)
+    |> Enum.reverse()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {hand, index} ->
+      hand.bid * index
+    end)
+    |> Enum.sum()
+  end
+
+  def sort_by_rank_descending(hands) do
+    Enum.sort(hands, fn hand1, hand2 ->
+      hand1_identifier = identify_hand(hand1.hand)
+      hand2_identifier = identify_hand(hand2.hand)
+      hand1_strength = @rank_name_to_strength[hand1_identifier]
+      hand2_strength = @rank_name_to_strength[hand2_identifier]
+
+      hand1_strength > hand2_strength ||
+        (hand1_strength == hand2_strength && hand_stronger?(hand1.hand, hand2.hand))
+    end)
+  end
+
+  def identify_hand(hand_string) do
+    cards = String.split(hand_string, "", trim: true)
+
+    tally =
+      Enum.reduce(cards, %{}, fn card, tally ->
+        Map.update(tally, card, 1, fn value -> value + 1 end)
+      end)
+
+    counts = Map.values(tally)
+
+    cond do
+      5 in counts -> "five_of_a_kind"
+      4 in counts -> "four_of_a_kind"
+      3 in counts && 2 in counts -> "full_house"
+      3 in counts && 1 in counts -> "three_of_a_kind"
+      Enum.count(counts, &(&1 == 2)) == 2 -> "two_pair"
+      Enum.count(counts, &(&1 == 2)) == 1 -> "one_pair"
+      true -> "high_card"
+    end
+  end
+
+  def hand_stronger?(hand1_string, hand2_string) do
+    card_strength = %{
+      "A" => 14,
+      "K" => 13,
+      "Q" => 12,
+      "J" => 11,
+      "T" => 10,
+      "9" => 9,
+      "8" => 8,
+      "7" => 7,
+      "6" => 6,
+      "5" => 5,
+      "4" => 4,
+      "3" => 3,
+      "2" => 2,
+      "1" => 1
+    }
+
+    zipped =
+      Enum.zip(
+        String.split(hand1_string, "", trim: true),
+        String.split(hand2_string, "", trim: true)
+      )
+
+    integer_strength =
+      Enum.find_value(zipped, fn {card1, card2} ->
+        strength1 = card_strength[card1]
+        strength2 = card_strength[card2]
+
+        cond do
+          strength1 > strength2 -> 1
+          strength1 < strength2 -> -1
+          true -> nil
+        end
+      end)
+
+    integer_strength in [1]
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @input """
+  32T3K 765
+  T55J5 684
+  KK677 28
+  KTJJT 220
+  QQQJA 483
+  """
+  @expected 6440
+
+  test "simple example" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+
+  test "sort_by_rank_descending/1" do
+    hands = [
+      %{hand_number: 1, hand: "32T3K", bid: 765},
+      %{hand_number: 2, hand: "T55J5", bid: 684},
+      %{hand_number: 3, hand: "KK677", bid: 28},
+      %{hand_number: 4, hand: "KTJJT", bid: 220},
+      %{hand_number: 5, hand: "QQQJA", bid: 483}
+    ]
+
+    expected =
+      [
+        %{hand_number: 1, hand: "32T3K", bid: 765},
+        %{hand_number: 4, hand: "KTJJT", bid: 220},
+        %{hand_number: 3, hand: "KK677", bid: 28},
+        %{hand_number: 2, hand: "T55J5", bid: 684},
+        %{hand_number: 5, hand: "QQQJA", bid: 483}
+      ]
+      |> Enum.reverse()
+
+    actual = sort_by_rank_descending(hands)
+    assert actual == expected
+  end
+
+  describe "identify_hand/1" do
+    test "Five of a kind" do
+      assert identify_hand("AAAAA") == "five_of_a_kind"
+    end
+
+    test "Four of a kind" do
+      assert identify_hand("AA8AA") == "four_of_a_kind"
+    end
+
+    test "Full house" do
+      assert identify_hand("23332") == "full_house"
+    end
+
+    test "Three of a kind" do
+      assert identify_hand("TTT98") == "three_of_a_kind"
+    end
+
+    test "Two pair" do
+      assert identify_hand("23432") == "two_pair"
+    end
+
+    test "One pair" do
+      assert identify_hand("A23A4") == "one_pair"
+    end
+
+    test "High card" do
+      assert identify_hand("23456") == "high_card"
+    end
+  end
+
+  describe "hand_stronger?/2" do
+    test "general test" do
+      assert hand_stronger?("33332", "2AAAA") == true
+      assert hand_stronger?("2AAAA", "33332") == false
+
+      assert hand_stronger?("77888", "77788") == true
+      assert hand_stronger?("77788", "77888") == false
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+
+puzzle_input
+|> String.split("\n", trim: true)
+|> Enum.map(fn elem -> String.split(elem, " ") |> hd() end)
+
+# |> Enum.uniq()
+# |> Enum.count()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    races = Parser.parse_part2(input_string)
+
+    Enum.map(races, fn %{time: time, record_distance: record_distance} ->
+      minimum_hold_time =
+        Enum.find(0..time, fn hold_time ->
+          speed = hold_time
+          distance = (time - hold_time) * speed
+          distance > record_distance
+        end)
+
+      maximum_hold_time =
+        Enum.find(time..0, fn hold_time ->
+          speed = hold_time
+          distance = (time - hold_time) * speed
+          distance > record_distance
+        end)
+
+      Enum.count(minimum_hold_time..maximum_hold_time)
+    end)
+    |> Enum.product()
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @input """
+  32T3K 765
+  T55J5 684
+  KK677 28
+  KTJJT 220
+  QQQJA 483
+  """
+  @expected 6440
+
+  test "simple example" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":7551,"stamp":{"token":"XCP.bnP38oL5G6CjMcG9Usv3k6TqTGJlHgwxOYEVti2qn6JxHzJUxlF0jQmxS9ddUQG0w9fykyrK2q7xIJ-lUMePVsCh9OZIYAJR-BKmlI62MD1FSDhP-f8","version":2}} -->
