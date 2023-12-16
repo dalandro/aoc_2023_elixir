@@ -34,8 +34,8 @@ defmodule Parser do
     end)
   end
 
-  def parse_part2(input) do
-  end
+  # def parse_part2(input) do
+  # end
 end
 ```
 
@@ -89,12 +89,13 @@ ExUnit.run()
 ```elixir
 defmodule PartOne do
   @rank_name_to_strength %{
-    "five_of_a_kind" => 6,
-    "four_of_a_kind" => 5,
-    "full_house" => 4,
-    "three_of_a_kind" => 3,
-    "two_pair" => 2,
-    "one_pair" => 1
+    "five_of_a_kind" => 7,
+    "four_of_a_kind" => 6,
+    "full_house" => 5,
+    "three_of_a_kind" => 4,
+    "two_pair" => 3,
+    "one_pair" => 2,
+    "high_card" => 1
   }
 
   def solve(input) do
@@ -183,7 +184,7 @@ defmodule PartOne do
         end
       end)
 
-    integer_strength in [1]
+    integer_strength in [1, nil]
   end
 end
 ```
@@ -204,6 +205,7 @@ defmodule PartOneTest do
   KTJJT 220
   QQQJA 483
   """
+
   @expected 6440
 
   test "simple example" do
@@ -211,27 +213,78 @@ defmodule PartOneTest do
     assert actual == @expected
   end
 
-  test "sort_by_rank_descending/1" do
-    hands = [
-      %{hand_number: 1, hand: "32T3K", bid: 765},
-      %{hand_number: 2, hand: "T55J5", bid: 684},
-      %{hand_number: 3, hand: "KK677", bid: 28},
-      %{hand_number: 4, hand: "KTJJT", bid: 220},
-      %{hand_number: 5, hand: "QQQJA", bid: 483}
-    ]
-
-    expected =
-      [
+  describe "sort_by_rank_descending/1" do
+    test "standard example" do
+      hands = [
+        # one_pair
         %{hand_number: 1, hand: "32T3K", bid: 765},
-        %{hand_number: 4, hand: "KTJJT", bid: 220},
-        %{hand_number: 3, hand: "KK677", bid: 28},
+        # three_of_a_kind
         %{hand_number: 2, hand: "T55J5", bid: 684},
+        # two_pair
+        %{hand_number: 3, hand: "KK677", bid: 28},
+        # two_pair
+        %{hand_number: 4, hand: "KTJJT", bid: 220},
+        # three_of_a_kind
         %{hand_number: 5, hand: "QQQJA", bid: 483}
       ]
-      |> Enum.reverse()
 
-    actual = sort_by_rank_descending(hands)
-    assert actual == expected
+      expected =
+        [
+          # three_of_a_kind - 5
+          %{hand_number: 5, hand: "QQQJA", bid: 483},
+          # three_of_a_kind - 4
+          %{hand_number: 2, hand: "T55J5", bid: 684},
+          # two_pair - 3 
+          %{hand_number: 3, hand: "KK677", bid: 28},
+          # two_pair - 2
+          %{hand_number: 4, hand: "KTJJT", bid: 220},
+          # one_pair - 1       
+          %{hand_number: 1, hand: "32T3K", bid: 765}
+        ]
+
+      actual = sort_by_rank_descending(hands)
+      assert actual == expected
+    end
+
+    test "example with all hand types" do
+      hands = [
+        # five_of_a_kind
+        %{hand_number: 1, hand: "AAAAA", bid: 765},
+        # four_of_a_kind
+        %{hand_number: 2, hand: "AA8AA", bid: 684},
+        # full_house
+        %{hand_number: 3, hand: "23332", bid: 28},
+        # three_of_a_kind
+        %{hand_number: 4, hand: "TTT98", bid: 220},
+        # two_pair
+        %{hand_number: 5, hand: "23432", bid: 483},
+        # one_pair
+        %{hand_number: 5, hand: "A23A4", bid: 483},
+        # high_card
+        %{hand_number: 5, hand: "23456", bid: 483}
+      ]
+
+      expected =
+        [
+          # five_of_a_kind  -> 7
+          %{hand_number: 1, hand: "AAAAA", bid: 765},
+          # four_of_a_kind  -> 6
+          %{hand_number: 2, hand: "AA8AA", bid: 684},
+          # full_house       -> 5
+          %{hand_number: 3, hand: "23332", bid: 28},
+          # three_of_a_kind -> 4
+          %{hand_number: 4, hand: "TTT98", bid: 220},
+          # two_pair        -> 3
+          %{hand_number: 5, hand: "23432", bid: 483},
+          # one_pair        -> 2
+          %{hand_number: 5, hand: "A23A4", bid: 483},
+          # high_card        -> 1
+          %{hand_number: 5, hand: "23456", bid: 483}
+        ]
+
+      actual = sort_by_rank_descending(hands)
+      assert actual == expected
+    end
   end
 
   describe "identify_hand/1" do
@@ -271,6 +324,13 @@ defmodule PartOneTest do
 
       assert hand_stronger?("77888", "77788") == true
       assert hand_stronger?("77788", "77888") == false
+
+      assert hand_stronger?("AA677", "KK677") == true
+      assert hand_stronger?("KK677", "AA677") == false
+
+      assert hand_stronger?("AA677", "AA677") == true
+
+      assert hand_stronger?("AAAAA", "23456") == true
     end
   end
 end
@@ -283,12 +343,26 @@ ExUnit.run()
 ```elixir
 PartOne.solve(puzzle_input)
 
+valid_vals = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"]
+
 puzzle_input
 |> String.split("\n", trim: true)
-|> Enum.map(fn elem -> String.split(elem, " ") |> hd() end)
+|> Enum.map(fn elem ->
+  String.split(elem, " ", trim: true) |> hd() |> String.split("", trim: true) |> Enum.sort()
+end)
 
 # |> Enum.uniq()
 # |> Enum.count()
+
+# |> Enum.filter(fn set -> Enum.any?(set, fn val -> val not in valid_vals end) end)
+# |> Enum.filter(fn set -> Enum.count(set) != 5 end)
+
+puzzle_input
+|> String.split("\n", trim: true)
+|> Enum.map(fn elem ->
+  String.split(elem, " ", trim: true) |> Enum.at(1) |> String.to_integer()
+end)
+|> Enum.filter(fn int -> int <= 20 end)
 ```
 
 <!-- livebook:{"branch_parent_index":2} -->
@@ -299,32 +373,126 @@ puzzle_input
 
 ```elixir
 defmodule PartTwo do
+  @rank_name_to_strength %{
+    "five_of_a_kind" => 7,
+    "four_of_a_kind" => 6,
+    "full_house" => 5,
+    "three_of_a_kind" => 4,
+    "two_pair" => 3,
+    "one_pair" => 2,
+    "high_card" => 1
+  }
+
   def solve(input) do
     IO.puts("--- Part Two ---")
     IO.puts("Result: #{run(input)}")
   end
 
   def run(input_string) do
-    races = Parser.parse_part2(input_string)
+    hands = Parser.parse_part1(input_string)
 
-    Enum.map(races, fn %{time: time, record_distance: record_distance} ->
-      minimum_hold_time =
-        Enum.find(0..time, fn hold_time ->
-          speed = hold_time
-          distance = (time - hold_time) * speed
-          distance > record_distance
-        end)
-
-      maximum_hold_time =
-        Enum.find(time..0, fn hold_time ->
-          speed = hold_time
-          distance = (time - hold_time) * speed
-          distance > record_distance
-        end)
-
-      Enum.count(minimum_hold_time..maximum_hold_time)
+    sort_by_rank_descending(hands)
+    |> Enum.reverse()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {hand, index} ->
+      hand.bid * index
     end)
-    |> Enum.product()
+    |> Enum.sum()
+  end
+
+  def sort_by_rank_descending(hands) do
+    Enum.sort(hands, fn hand1, hand2 ->
+      hand1_identifier = identify_hand(hand1.hand)
+      hand2_identifier = identify_hand(hand2.hand)
+      hand1_strength = @rank_name_to_strength[hand1_identifier]
+      hand2_strength = @rank_name_to_strength[hand2_identifier]
+
+      hand1_strength > hand2_strength ||
+        (hand1_strength == hand2_strength && hand_stronger?(hand1.hand, hand2.hand))
+    end)
+  end
+
+  def identify_hand(hand_string) do
+    cards = String.split(hand_string, "", trim: true)
+
+    tally =
+      Enum.reduce(cards, %{}, fn card, tally ->
+        Map.update(tally, card, 1, fn value -> value + 1 end)
+      end)
+
+    counts_excluding_j = tally |> Map.reject(fn {k, _v} -> k == "J" end) |> Map.values()
+
+    cond do
+      five_of_a_kind?(tally, counts_excluding_j) -> "five_of_a_kind"
+      four_of_a_kind?(tally, counts_excluding_j) -> "four_of_a_kind"
+      full_house?(tally, counts_excluding_j) -> "full_house"
+      three_of_a_kind?(tally, counts_excluding_j) -> "three_of_a_kind"
+      two_pair?(tally, counts_excluding_j) -> "two_pair"
+      one_pair?(tally, counts_excluding_j) -> "one_pair"
+      true -> "high_card"
+    end
+  end
+
+  defp five_of_a_kind?(tally, counts) do
+    Enum.max(counts, fn -> 0 end) + Map.get(tally, "J", 0) == 5
+  end
+
+  defp four_of_a_kind?(tally, counts) do
+    Enum.max(counts, fn -> 0 end) + Map.get(tally, "J", 0) == 4
+  end
+
+  defp full_house?(tally, counts) do
+    (3 in counts && 2 in counts) || (Enum.count(counts, &(&1 == 2)) == 2 && tally["J"] == 1)
+  end
+
+  defp three_of_a_kind?(tally, counts) do
+    Enum.max(counts, fn -> 0 end) + Map.get(tally, "J", 0) == 3 && 1 in counts
+  end
+
+  defp two_pair?(_tally, counts) do
+    Enum.count(counts, &(&1 == 2)) == 2
+  end
+
+  defp one_pair?(tally, counts) do
+    Enum.count(counts, &(&1 == 2)) == 1 || Map.get(tally, "J", 0) == 1
+  end
+
+  def hand_stronger?(hand1_string, hand2_string) do
+    card_strength = %{
+      "A" => 13,
+      "K" => 12,
+      "Q" => 11,
+      "T" => 10,
+      "9" => 9,
+      "8" => 8,
+      "7" => 7,
+      "6" => 6,
+      "5" => 5,
+      "4" => 4,
+      "3" => 3,
+      "2" => 2,
+      "J" => 1
+    }
+
+    zipped =
+      Enum.zip(
+        String.split(hand1_string, "", trim: true),
+        String.split(hand2_string, "", trim: true)
+      )
+
+    integer_strength =
+      Enum.find_value(zipped, fn {card1, card2} ->
+        strength1 = card_strength[card1]
+        strength2 = card_strength[card2]
+
+        cond do
+          strength1 > strength2 -> 1
+          strength1 < strength2 -> -1
+          true -> nil
+        end
+      end)
+
+    integer_strength in [1, nil]
   end
 end
 ```
@@ -345,11 +513,162 @@ defmodule PartTwoTest do
   KTJJT 220
   QQQJA 483
   """
-  @expected 6440
+
+  @expected 5905
 
   test "simple example" do
     actual = run(@input)
     assert actual == @expected
+  end
+
+  describe "sort_by_rank_descending/1" do
+    test "standard example" do
+      hands = [
+        # one_pair
+        %{hand_number: 1, hand: "32T3K", bid: 765},
+        # four_of_a_kind
+        %{hand_number: 2, hand: "T55J5", bid: 684},
+        # two_pair
+        %{hand_number: 3, hand: "KK677", bid: 28},
+        # four_of_a_kind
+        %{hand_number: 4, hand: "KTJJT", bid: 220},
+        # four_of_a_kind
+        %{hand_number: 5, hand: "QQQJA", bid: 483}
+      ]
+
+      expected =
+        [
+          # four_of_a_kind - 5
+          %{hand_number: 4, hand: "KTJJT", bid: 220},
+          # four_of_a_kind - 4
+          %{hand_number: 5, hand: "QQQJA", bid: 483},
+          # four_of_a_kind - 3
+          %{hand_number: 2, hand: "T55J5", bid: 684},
+          # two_pair - 2
+          %{hand_number: 3, hand: "KK677", bid: 28},
+          # one_pair - 1       
+          %{hand_number: 1, hand: "32T3K", bid: 765}
+        ]
+
+      actual = sort_by_rank_descending(hands)
+      assert actual == expected
+    end
+
+    test "example with all hand types" do
+      hands = [
+        # five_of_a_kind
+        %{hand_number: 1, hand: "AAAAA", bid: 765},
+        # four_of_a_kind
+        %{hand_number: 2, hand: "AA8AA", bid: 684},
+        # full_house
+        %{hand_number: 3, hand: "23332", bid: 28},
+        # three_of_a_kind
+        %{hand_number: 4, hand: "TTT98", bid: 220},
+        # two_pair
+        %{hand_number: 5, hand: "23432", bid: 483},
+        # one_pair
+        %{hand_number: 5, hand: "A23A4", bid: 483},
+        # high_card
+        %{hand_number: 5, hand: "23456", bid: 483}
+      ]
+
+      expected =
+        [
+          # five_of_a_kind  -> 7
+          %{hand_number: 1, hand: "AAAAA", bid: 765},
+          # four_of_a_kind  -> 6
+          %{hand_number: 2, hand: "AA8AA", bid: 684},
+          # full_house       -> 5
+          %{hand_number: 3, hand: "23332", bid: 28},
+          # three_of_a_kind -> 4
+          %{hand_number: 4, hand: "TTT98", bid: 220},
+          # two_pair        -> 3
+          %{hand_number: 5, hand: "23432", bid: 483},
+          # one_pair        -> 2
+          %{hand_number: 5, hand: "A23A4", bid: 483},
+          # high_card        -> 1
+          %{hand_number: 5, hand: "23456", bid: 483}
+        ]
+
+      actual = sort_by_rank_descending(hands)
+      assert actual == expected
+    end
+  end
+
+  describe "identify_hand/1" do
+    test "Five of a kind" do
+      assert identify_hand("AAAAA") == "five_of_a_kind"
+    end
+
+    test "Four of a kind" do
+      assert identify_hand("AA8AA") == "four_of_a_kind"
+    end
+
+    test "Full house" do
+      assert identify_hand("23332") == "full_house"
+    end
+
+    test "Three of a kind" do
+      assert identify_hand("TTT98") == "three_of_a_kind"
+    end
+
+    test "Two pair" do
+      assert identify_hand("23432") == "two_pair"
+    end
+
+    test "One pair" do
+      assert identify_hand("A23A4") == "one_pair"
+    end
+
+    test "High card" do
+      assert identify_hand("23456") == "high_card"
+    end
+
+    test "joker five_of_a_kind" do
+      assert identify_hand("QJQQQ") == "five_of_a_kind"
+      assert identify_hand("QJJQQ") == "five_of_a_kind"
+      assert identify_hand("QJJJQ") == "five_of_a_kind"
+      assert identify_hand("QJJJJ") == "five_of_a_kind"
+      assert identify_hand("JJJJJ") == "five_of_a_kind"
+    end
+
+    test "joker four_of_a_kind" do
+      assert identify_hand("QJQQ2") == "four_of_a_kind"
+      assert identify_hand("QJJQ2") == "four_of_a_kind"
+      assert identify_hand("QJJJ2") == "four_of_a_kind"
+    end
+
+    test "joker full_house" do
+      assert identify_hand("QJKQK") == "full_house"
+    end
+
+    test "joker three_of_a_kind" do
+      assert identify_hand("QQJ98") == "three_of_a_kind"
+      assert identify_hand("QJJ98") == "three_of_a_kind"
+    end
+
+    test "joker one_pair" do
+      assert identify_hand("2345J") == "one_pair"
+    end
+  end
+
+  describe "hand_stronger?/2" do
+    test "general test" do
+      assert hand_stronger?("33332", "2AAAA") == true
+      assert hand_stronger?("2AAAA", "33332") == false
+
+      assert hand_stronger?("77888", "77788") == true
+      assert hand_stronger?("77788", "77888") == false
+
+      assert hand_stronger?("AA677", "KK677") == true
+      assert hand_stronger?("KK677", "AA677") == false
+
+      assert hand_stronger?("AA677", "AA677") == true
+
+      assert hand_stronger?("AAAAA", "23456") == true
+
+      assert hand_stronger?("QQQQ2", "JKKK2") == true
+    end
   end
 end
 
@@ -362,4 +681,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":7551,"stamp":{"token":"XCP.bnP38oL5G6CjMcG9Usv3k6TqTGJlHgwxOYEVti2qn6JxHzJUxlF0jQmxS9ddUQG0w9fykyrK2q7xIJ-lUMePVsCh9OZIYAJR-BKmlI62MD1FSDhP-f8","version":2}} -->
+<!-- livebook:{"offset":16813,"stamp":{"token":"XCP.rZPBr63JiEsy_WGPPgcjmksAwZ719YAbdHHUh2gIFUEe3IdRWm40RQASfMxJXjZEOXD59iTaHUihHMJ0sRuQPEEW_cEtwiRLvg-3OkT3MR7s1s6Erl0","version":2}} -->
