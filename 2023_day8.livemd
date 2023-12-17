@@ -1,0 +1,419 @@
+# Advent of Code - Day 8
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"8","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "8", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse(input) do
+    path = path(input)
+
+    network = network(input)
+    start_location = "AAA"
+
+    %{path: path, start_location: start_location, network: network}
+  end
+
+  def parse2(input) do
+    path = path(input)
+
+    network = network(input)
+
+    start_locations =
+      Map.keys(network)
+      |> Enum.filter(fn key -> String.ends_with?(key, "A") end)
+
+    end_locations =
+      Map.keys(network)
+      |> Enum.filter(fn key -> String.ends_with?(key, "Z") end)
+      |> MapSet.new()
+
+    %{
+      path: path,
+      start_locations: start_locations,
+      end_locations: end_locations,
+      network: network
+    }
+  end
+
+  defp path(input) do
+    Regex.run(~r/(R|L)+/, input) |> hd() |> String.split("", trim: true)
+  end
+
+  defp network(input) do
+    network_strings = Regex.scan(~r/(\S{3}) = \((\S{3}), (\S{3})\)/, input)
+
+    for [_match, capture1, capture2, capture3] <- network_strings, into: %{} do
+      {capture1, {capture2, capture3}}
+    end
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input1 """
+  RL
+
+  AAA = (BBB, CCC)
+  BBB = (DDD, EEE)
+  CCC = (ZZZ, GGG)
+  DDD = (DDD, DDD)
+  EEE = (EEE, EEE)
+  GGG = (GGG, GGG)
+  ZZZ = (ZZZ, ZZZ)
+  """
+
+  @expected1 %{
+    path: ["R", "L"],
+    start_location: "AAA",
+    network: %{
+      "AAA" => {"BBB", "CCC"},
+      "BBB" => {"DDD", "EEE"},
+      "CCC" => {"ZZZ", "GGG"},
+      "DDD" => {"DDD", "DDD"},
+      "EEE" => {"EEE", "EEE"},
+      "GGG" => {"GGG", "GGG"},
+      "ZZZ" => {"ZZZ", "ZZZ"}
+    }
+  }
+
+  @input2 """
+  LLR
+
+  AAA = (BBB, BBB)
+  BBB = (AAA, ZZZ)
+  ZZZ = (ZZZ, ZZZ)
+  """
+
+  @expected2 %{
+    path: ["L", "L", "R"],
+    start_location: "AAA",
+    network: %{"AAA" => {"BBB", "BBB"}, "BBB" => {"AAA", "ZZZ"}, "ZZZ" => {"ZZZ", "ZZZ"}}
+  }
+
+  describe "parse test" do
+    test "input 1" do
+      actual = parse(@input1)
+      assert actual == @expected1
+    end
+
+    test "input 2" do
+      actual = parse(@input2)
+      assert actual == @expected2
+    end
+  end
+
+  @input_pt2 """
+  LR
+
+  11A = (11B, XXX)
+  11B = (XXX, 11Z)
+  11Z = (11B, XXX)
+  22A = (22B, XXX)
+  22B = (22C, 22C)
+  22C = (22Z, 22Z)
+  22Z = (22B, 22B)
+  XXX = (XXX, XXX)
+  """
+
+  @expected_pt2 %{
+    path: ["L", "R"],
+    start_locations: ["11A", "22A"],
+    end_locations: MapSet.new(["11Z", "22Z"]),
+    network: %{
+      "11A" => {"11B", "XXX"},
+      "11B" => {"XXX", "11Z"},
+      "11Z" => {"11B", "XXX"},
+      "22A" => {"22B", "XXX"},
+      "22B" => {"22C", "22C"},
+      "22C" => {"22Z", "22Z"},
+      "22Z" => {"22B", "22B"},
+      "XXX" => {"XXX", "XXX"}
+    }
+  }
+
+  describe "parse2 test" do
+    test "input" do
+      actual = parse2(@input_pt2)
+      assert actual == @expected_pt2
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    %{path: path, start_location: start_location, network: network} = Parser.parse(input_string)
+
+    IO.puts(start_location)
+    steps_to_reach_zzz(path, network, start_location)
+  end
+
+  defp steps_to_reach_zzz(path, network, current_location, path_idx \\ 0, steps \\ 1) do
+    next_location =
+      case Enum.at(path, path_idx) do
+        "L" -> network[current_location] |> Tuple.to_list() |> hd()
+        "R" -> network[current_location] |> Tuple.to_list() |> tl() |> hd()
+      end
+
+    if next_location == "ZZZ" do
+      steps
+    else
+      steps_to_reach_zzz(
+        path,
+        network,
+        next_location,
+        rem(path_idx + 1, Enum.count(path)),
+        steps + 1
+      )
+    end
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @input1 """
+  RL
+
+  AAA = (BBB, CCC)
+  BBB = (DDD, EEE)
+  CCC = (ZZZ, GGG)
+  DDD = (DDD, DDD)
+  EEE = (EEE, EEE)
+  GGG = (GGG, GGG)
+  ZZZ = (ZZZ, ZZZ)
+  """
+  @expected1 2
+
+  @input2 """
+  LLR
+
+  AAA = (BBB, BBB)
+  BBB = (AAA, ZZZ)
+  ZZZ = (ZZZ, ZZZ)
+  """
+  @expected2 6
+
+  test "simple example 1" do
+    actual = run(@input1)
+    assert actual == @expected1
+  end
+
+  test "simple example 2" do
+    actual = run(@input2)
+    assert actual == @expected2
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+# %{path: path, start_location: start_location, network: network} = Parser.parse(puzzle_input)
+# Map.filter(network, fn {key, {left, right}} -> key != String.upcase(key) || left != String.upcase(left) || right != String.upcase(right) end)
+# network["ZZZ"]
+# Map.filter(network, fn {key, {left, right}} -> Enum.any?([key, left, right], fn elem -> String.ends_with?(elem, "A") || String.ends_with?(elem, "Z") end) end)
+# Map.filter(network, fn {key, {left, right}} -> Enum.any?([key, left, right], fn elem -> String.length(elem) !=3 end) end)
+
+#  = Parser.parse(puzzle_input)
+# puzzle_input |> String.split("\n", trim: true)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    %{
+      path: path,
+      start_locations: start_locations,
+      end_locations: end_locations,
+      network: network
+    } = Parser.parse2(input_string)
+
+    path_map = Enum.with_index(path) |> Map.new(fn {path, idx} -> {idx, path} end)
+
+    IO.inspect(start_locations)
+    IO.inspect(end_locations)
+
+    Enum.map(start_locations, fn start_location ->
+      steps_to_reach_zzz(path_map, Enum.count(path_map), network, start_location, end_locations)
+    end)
+    |> Enum.uniq()
+    |> common_product()
+  end
+
+  defp steps_to_reach_zzz(
+         path_map,
+         path_size,
+         network,
+         current_location,
+         end_locations,
+         path_idx \\ 0,
+         steps \\ 1
+       ) do
+    next_location =
+      case path_map[path_idx] do
+        "L" ->
+          {left, _right} = network[current_location]
+          left
+
+        "R" ->
+          {_left, right} = network[current_location]
+          right
+      end
+
+    if MapSet.subset?(MapSet.new([next_location]), end_locations) do
+      steps
+    else
+      steps_to_reach_zzz(
+        path_map,
+        path_size,
+        network,
+        next_location,
+        end_locations,
+        rem(path_idx + 1, path_size),
+        steps + 1
+      )
+    end
+  end
+
+  # def common_product([item1, item2]), do: item1 * item2
+  def common_product(list) do
+    sorted_list = Enum.sort(list) |> Enum.reverse()
+
+    Enum.reduce(tl(sorted_list), hd(sorted_list), fn elem, res ->
+      if rem(res, elem) == 0 do
+        res
+      else
+        Enum.find(1..elem, 1, fn multiply ->
+          rem(multiply * res, elem) == 0
+        end) * res
+      end
+    end)
+  end
+
+  # defp steps_to_reach_zzz2(path, network, current_location, path_idx \\ 0, steps \\ 1) do
+  #   next_location = case Enum.at(path, path_idx) do
+  #     "L" -> network[current_location] |> Tuple.to_list() |> hd()
+  #     "R" -> network[current_location] |> Tuple.to_list() |> tl() |> hd()
+  #   end
+
+  #   if next_location == "ZZZ" do
+  #     steps
+  #   else
+  #     steps_to_reach_zzz(path, network, next_location, rem(path_idx + 1, Enum.count(path)), steps + 1)
+  #   end
+  # end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @input """
+  LR
+
+  11A = (11B, XXX)
+  11B = (XXX, 11Z)
+  11Z = (11B, XXX)
+  22A = (22B, XXX)
+  22B = (22C, 22C)
+  22C = (22Z, 22Z)
+  22Z = (22B, 22B)
+  XXX = (XXX, XXX)
+  """
+  @expected 6
+
+  test "simple example" do
+    actual = run(@input)
+    assert actual == @expected
+  end
+
+  test "common_product/1" do
+    assert common_product([1, 2]) == 2
+    assert common_product([1, 2, 3]) == 6
+    assert common_product([1, 2, 3, 4]) == 12
+    assert common_product([1, 2, 3, 4, 5]) == 60
+    assert common_product([1, 2, 3, 4, 5, 6]) == 60
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":8656,"stamp":{"token":"XCP.jphAk2eUPlhXyuKskO4LAdrLsaYDpnYr8FfO6EW6vq76LgvjinMcu_l3vxyOt1gvD12Q1HasirzRHC7d8IyKjmjwpIXNiieTGRU7IBeV5F9P-H4OgAo","version":2}} -->
