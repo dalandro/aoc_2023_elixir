@@ -1,0 +1,486 @@
+# Advent of Code - Day 10
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"10","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "10", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse(input) do
+    String.split(input, "\n", trim: true)
+    |> Enum.map(fn string -> String.split(string, "", trim: true) end)
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input1 """
+  .....
+  .S-7.
+  .|.|.
+  .L-J.
+  .....
+  """
+
+  @expected1 [
+    [".", ".", ".", ".", "."],
+    [".", "S", "-", "7", "."],
+    [".", "|", ".", "|", "."],
+    [".", "L", "-", "J", "."],
+    [".", ".", ".", ".", "."]
+  ]
+
+  describe "parse test" do
+    test "input 1" do
+      actual = parse(@input1)
+      assert actual == @expected1
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    graph = Parser.parse(input_string)
+
+    coordinates_of_circuit(graph)
+    |> distance_of_furthest_tile()
+  end
+
+  def coordinates_of_circuit(graph) do
+    starting_coord = find_s_coord(graph)
+
+    traverse_circuit(graph, starting_coord, starting_coord, [])
+    |> Enum.reverse()
+  end
+
+  def distance_of_furthest_tile(coordinates) do
+    (length(coordinates) / 2)
+    |> Float.round()
+  end
+
+  def find_s_coord(graph) do
+    Enum.find_value(graph |> Enum.with_index(), fn {row, row_i} ->
+      Enum.find_value(row |> Enum.with_index(), fn {cell, col_i} ->
+        if cell == "S", do: {row_i, col_i, cell}
+      end)
+    end)
+  end
+
+  def traverse_circuit(graph, starting_coord, current_coord, path_so_far) do
+    if completed_circuit?(starting_coord, current_coord, path_so_far) do
+      path_so_far
+    else
+      # IO.inspect(current_coord, label: "current_coord")
+      possible_next_coords(graph, current_coord)
+      |> Enum.reject(fn coord -> coord == List.first(path_so_far) end)
+      |> Enum.map(fn next_coord ->
+        traverse_circuit(graph, starting_coord, next_coord, [current_coord | path_so_far])
+      end)
+      |> hd()
+    end
+  end
+
+  def possible_next_coords(graph, current_coord) do
+    {current_y, current_x, _cell} = current_coord
+
+    %{
+      coord_east_of(graph, current_y, current_x) => east_viable?(graph, current_y, current_x),
+      coord_south_of(graph, current_y, current_x) => south_viable?(graph, current_y, current_x),
+      coord_west_of(graph, current_y, current_x) => west_viable?(graph, current_y, current_x),
+      coord_north_of(graph, current_y, current_x) => north_viable?(graph, current_y, current_x)
+    }
+    |> Map.filter(fn {_k, v} -> v end)
+    |> Map.keys()
+  end
+
+  defp east_viable?(graph, current_y, current_x) do
+    cell_at(graph, current_y, current_x) in ["S", "-", "L", "F"] &&
+      cell_east_of(graph, current_y, current_x) in ["S", "-", "J", "7"]
+  end
+
+  defp south_viable?(graph, current_y, current_x) do
+    cell_at(graph, current_y, current_x) in ["S", "|", "7", "F"] &&
+      cell_south_of(graph, current_y, current_x) in ["S", "|", "L", "J"]
+  end
+
+  defp west_viable?(graph, current_y, current_x) do
+    cell_at(graph, current_y, current_x) in ["S", "-", "J", "7"] &&
+      cell_west_of(graph, current_y, current_x) in ["S", "-", "L", "F"]
+  end
+
+  defp north_viable?(graph, current_y, current_x) do
+    cell_at(graph, current_y, current_x) in ["S", "|", "L", "J"] &&
+      cell_north_of(graph, current_y, current_x) in ["S", "|", "7", "F"]
+  end
+
+  defp coord_east_of(graph, current_y, current_x) do
+    coord_at(graph, current_y, current_x + 1)
+  end
+
+  defp coord_south_of(graph, current_y, current_x) do
+    coord_at(graph, current_y + 1, current_x)
+  end
+
+  defp coord_west_of(graph, current_y, current_x) do
+    coord_at(graph, current_y, current_x - 1)
+  end
+
+  defp coord_north_of(graph, current_y, current_x) do
+    coord_at(graph, current_y - 1, current_x)
+  end
+
+  defp cell_east_of(graph, current_y, current_x) do
+    cell_at(graph, current_y, current_x + 1)
+  end
+
+  defp cell_south_of(graph, current_y, current_x) do
+    cell_at(graph, current_y + 1, current_x)
+  end
+
+  defp cell_west_of(graph, current_y, current_x) do
+    cell_at(graph, current_y, current_x - 1)
+  end
+
+  defp cell_north_of(graph, current_y, current_x) do
+    cell_at(graph, current_y - 1, current_x)
+  end
+
+  defp coord_at(graph, y, x) do
+    {y, x, cell_at(graph, y, x)}
+  end
+
+  defp cell_at(graph, y, x) do
+    Enum.at(graph, y) |> Enum.at(x)
+  end
+
+  defp completed_circuit?(starting_coord, current_coord, path_so_far) do
+    starting_coord == current_coord && List.last(path_so_far) == starting_coord
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @input1 """
+  .....
+  .S-7.
+  .|.|.
+  .L-J.
+  .....
+  """
+  @expected1 4
+
+  test "simple example 1" do
+    actual = run(@input1)
+    assert actual == @expected1
+  end
+
+  describe "coordinates_of_circuit/1" do
+    test "simple example" do
+      input = [
+        [".", ".", ".", ".", "."],
+        [".", "S", "-", "7", "."],
+        [".", "|", ".", "|", "."],
+        [".", "L", "-", "J", "."],
+        [".", ".", ".", ".", "."]
+      ]
+
+      assert coordinates_of_circuit(input) == [
+               {1, 1, "S"},
+               {1, 2, "-"},
+               {1, 3, "7"},
+               {2, 3, "|"},
+               {3, 3, "J"},
+               {3, 2, "-"},
+               {3, 1, "L"},
+               {2, 1, "|"}
+             ]
+    end
+  end
+
+  describe "distance_of_furthest_tile/1" do
+    test "simple example" do
+      input = [
+        {1, 1, "S"},
+        {1, 2, "-"},
+        {1, 3, "7"},
+        {2, 3, "|"},
+        {3, 3, "J"},
+        {3, 2, "-"},
+        {3, 1, "L"},
+        {2, 1, "|"}
+      ]
+
+      assert distance_of_furthest_tile(input) == 4
+    end
+  end
+
+  describe "traverse_circuit/4" do
+    test "returns if made it to the end" do
+      input = [
+        [".", ".", ".", "."],
+        [".", "S", "7", "."],
+        [".", "L", "J", "."],
+        [".", ".", ".", "."]
+      ]
+
+      assert traverse_circuit(
+               input,
+               {1, 1, "S"},
+               {1, 1, "S"},
+               [{2, 1, "L"}, {2, 2, "J"}, {1, 2, "7"}, {1, 1, "S"}]
+             ) ==
+               [{2, 1, "L"}, {2, 2, "J"}, {1, 2, "7"}, {1, 1, "S"}]
+    end
+
+    test "add destination to the response when nearly at the end" do
+      input = [
+        [".", ".", ".", "."],
+        [".", "S", "7", "."],
+        [".", "L", "J", "."],
+        [".", ".", ".", "."]
+      ]
+
+      IO.puts("HERE")
+
+      assert traverse_circuit(
+               input,
+               {1, 1, "S"},
+               {2, 1, "L"},
+               [{2, 2, "J"}, {1, 2, "7"}, {1, 1, "S"}]
+             ) ==
+               [{2, 1, "L"}, {2, 2, "J"}, {1, 2, "7"}, {1, 1, "S"}]
+    end
+
+    test "full traversal" do
+      input = [
+        [".", ".", ".", ".", "."],
+        [".", "S", "-", "7", "."],
+        [".", "|", ".", "|", "."],
+        [".", "L", "-", "J", "."],
+        [".", ".", ".", ".", "."]
+      ]
+
+      assert traverse_circuit(input, {1, 1, "S"}, {1, 1, "S"}, []) == [
+               {2, 1, "|"},
+               {3, 1, "L"},
+               {3, 2, "-"},
+               {3, 3, "J"},
+               {2, 3, "|"},
+               {1, 3, "7"},
+               {1, 2, "-"},
+               {1, 1, "S"}
+             ]
+    end
+  end
+
+  describe "find_s_coord/1" do
+    test "simple example" do
+      input = [
+        [".", ".", ".", ".", "."],
+        [".", "S", "-", "7", "."],
+        [".", "|", ".", "|", "."],
+        [".", "L", "-", "J", "."],
+        [".", ".", ".", ".", "."]
+      ]
+
+      assert find_s_coord(input) == {1, 1, "S"}
+    end
+  end
+
+  describe "possible_next_coords/2" do
+    test "when current coord is S, any adjacent coord pointing to current coord is possible" do
+      input = [
+        [".", "J", "."],
+        ["|", "S", "-"],
+        [".", "|", "."]
+      ]
+
+      assert possible_next_coords(input, {1, 1, "S"}) == [{1, 2, "-"}, {2, 1, "|"}]
+
+      input2 = [
+        [".", "7", "."],
+        ["F", "S", "|"],
+        [".", "F", "."]
+      ]
+
+      assert possible_next_coords(input2, {1, 1, "S"}) == [{0, 1, "7"}, {1, 0, "F"}]
+    end
+
+    def with_centre_eql(input, str) do
+      List.replace_at(input, 1, Enum.at(input, 1) |> List.replace_at(1, str))
+    end
+
+    test "when current coord is not S, restrict to adjacent coordinates that current cell points to" do
+      input = [
+        [".", "F", "."],
+        ["|", "X", "-"],
+        [".", "|", "."]
+      ]
+
+      assert possible_next_coords(with_centre_eql(input, "|"), {1, 1, "|"}) == [
+               {0, 1, "F"},
+               {2, 1, "|"}
+             ]
+
+      assert possible_next_coords(with_centre_eql(input, "-"), {1, 1, "-"}) == [{1, 2, "-"}]
+
+      assert possible_next_coords(with_centre_eql(input, "L"), {1, 1, "L"}) == [
+               {0, 1, "F"},
+               {1, 2, "-"}
+             ]
+
+      assert possible_next_coords(with_centre_eql(input, "J"), {1, 1, "J"}) == [{0, 1, "F"}]
+      assert possible_next_coords(with_centre_eql(input, "7"), {1, 1, "7"}) == [{2, 1, "|"}]
+
+      assert possible_next_coords(with_centre_eql(input, "F"), {1, 1, "F"}) == [
+               {1, 2, "-"},
+               {2, 1, "|"}
+             ]
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+# Parser.parse(puzzle_input) |> Enum.map(fn list -> Enum.count(list) end) |> Enum.sum()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    graph = Parser.parse(input_string)
+
+    coordinates_of_circuit = PartOne.coordinates_of_circuit(graph)
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @input1 """
+  ...........
+  .S-------7.
+  .|F-----7|.
+  .||.....||.
+  .||.....||.
+  .|L-7.F-J|.
+  .|..|.|..|.
+  .L--J.L--J.
+  ...........
+  """
+
+  describe "run" do
+    test "example 1" do
+      actual = run(@input1)
+      assert actual == 4
+    end
+
+    @input2 """
+    .F----7F7F7F7F-7....
+    .|F--7||||||||FJ....
+    .||.FJ||||||||L7....
+    FJL7L7LJLJ||LJ.L-7..
+    L--J.L7...LJS7F-7L7.
+    ....F-J..F7FJ|L7L7L7
+    ....L7.F7||L7|.L7L7|
+    .....|FJLJ|FJ|F7|.LJ
+    ....FJL-7.||.||||...
+    ....L---J.LJ.LJLJ...
+    """
+
+    test "example 2" do
+      actual = run(@input2)
+      assert actual == 8
+    end
+  end
+
+  describe "point_in_perimeter?/3" do
+    graph = Parser.parse(@input1)
+    circuit = PartOne.coordinates_of_circuit(graph)
+    # assert coordinate_in_perimeter?(graph, circuit, {}) == 3
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":11299,"stamp":{"token":"XCP.zqLaWDO6k3YG-pMune0qYX7bhwm05xSMufpaQQCtYNw3fFIHD9i7BhsVgSFVs4P7deL2oLgwcNQXQgscsDlVFVrdn7cYCw4Em798aXcPho86mqaeD6k","version":2}} -->
