@@ -416,4 +416,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":8656,"stamp":{"token":"XCP.jphAk2eUPlhXyuKskO4LAdrLsaYDpnYr8FfO6EW6vq76LgvjinMcu_l3vxyOt1gvD12Q1HasirzRHC7d8IyKjmjwpIXNiieTGRU7IBeV5F9P-H4OgAo","version":2}} -->
+<!-- livebook:{"offset":8656,"stamp":{"token":"XCP.-eVYtHoc8GIy6GJ2nWjyqU3mdc97pVPnc6PgTVj9CmvgUcDwKHhV8cKSXu_mkdLlUN5uH5EuRByCV_Zb1P3zfLd2SOhZxuP_4UTe13hHcPWLsPp9X9Y","version":2}} -->

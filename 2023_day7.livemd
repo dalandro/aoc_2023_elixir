@@ -680,5 +680,3 @@ ExUnit.run()
 ```elixir
 PartTwo.solve(puzzle_input)
 ```
-
-<!-- livebook:{"offset":16813,"stamp":{"token":"XCP.rZPBr63JiEsy_WGPPgcjmksAwZ719YAbdHHUh2gIFUEe3IdRWm40RQASfMxJXjZEOXD59iTaHUihHMJ0sRuQPEEW_cEtwiRLvg-3OkT3MR7s1s6Erl0","version":2}} -->
