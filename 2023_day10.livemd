@@ -62,6 +62,247 @@ defmodule ParserTest do
       actual = parse(@input1)
       assert actual == @expected1
     end
+
+    @input2 """
+    .F----7F7F7F7F-7....
+    .|F--7||||||||FJ....
+    .||.FJ||||||||L7....
+    FJL7L7LJLJ||LJ.L-7..
+    L--J.L7...LJS7F-7L7.
+    ....F-J..F7FJ|L7L7L7
+    ....L7.F7||L7|.L7L7|
+    .....|FJLJ|FJ|F7|.LJ
+    ....FJL-7.||.||||...
+    ....L---J.LJ.LJLJ...
+    """
+
+    @expected2 [
+      [
+        ".",
+        "F",
+        "-",
+        "-",
+        "-",
+        "-",
+        "7",
+        "F",
+        "7",
+        "F",
+        "7",
+        "F",
+        "7",
+        "F",
+        "-",
+        "7",
+        ".",
+        ".",
+        ".",
+        "."
+      ],
+      [
+        ".",
+        "|",
+        "F",
+        "-",
+        "-",
+        "7",
+        "|",
+        "|",
+        "|",
+        "|",
+        "|",
+        "|",
+        "|",
+        "|",
+        "F",
+        "J",
+        ".",
+        ".",
+        ".",
+        "."
+      ],
+      [
+        ".",
+        "|",
+        "|",
+        ".",
+        "F",
+        "J",
+        "|",
+        "|",
+        "|",
+        "|",
+        "|",
+        "|",
+        "|",
+        "|",
+        "L",
+        "7",
+        ".",
+        ".",
+        ".",
+        "."
+      ],
+      [
+        "F",
+        "J",
+        "L",
+        "7",
+        "L",
+        "7",
+        "L",
+        "J",
+        "L",
+        "J",
+        "|",
+        "|",
+        "L",
+        "J",
+        ".",
+        "L",
+        "-",
+        "7",
+        ".",
+        "."
+      ],
+      [
+        "L",
+        "-",
+        "-",
+        "J",
+        ".",
+        "L",
+        "7",
+        ".",
+        ".",
+        ".",
+        "L",
+        "J",
+        "S",
+        "7",
+        "F",
+        "-",
+        "7",
+        "L",
+        "7",
+        "."
+      ],
+      [
+        ".",
+        ".",
+        ".",
+        ".",
+        "F",
+        "-",
+        "J",
+        ".",
+        ".",
+        "F",
+        "7",
+        "F",
+        "J",
+        "|",
+        "L",
+        "7",
+        "L",
+        "7",
+        "L",
+        "7"
+      ],
+      [
+        ".",
+        ".",
+        ".",
+        ".",
+        "L",
+        "7",
+        ".",
+        "F",
+        "7",
+        "|",
+        "|",
+        "L",
+        "7",
+        "|",
+        ".",
+        "L",
+        "7",
+        "L",
+        "7",
+        "|"
+      ],
+      [
+        ".",
+        ".",
+        ".",
+        ".",
+        ".",
+        "|",
+        "F",
+        "J",
+        "L",
+        "J",
+        "|",
+        "F",
+        "J",
+        "|",
+        "F",
+        "7",
+        "|",
+        ".",
+        "L",
+        "J"
+      ],
+      [
+        ".",
+        ".",
+        ".",
+        ".",
+        "F",
+        "J",
+        "L",
+        "-",
+        "7",
+        ".",
+        "|",
+        "|",
+        ".",
+        "|",
+        "|",
+        "|",
+        "|",
+        ".",
+        ".",
+        "."
+      ],
+      [
+        ".",
+        ".",
+        ".",
+        ".",
+        "L",
+        "-",
+        "-",
+        "-",
+        "J",
+        ".",
+        "L",
+        "J",
+        ".",
+        "L",
+        "J",
+        "L",
+        "J",
+        ".",
+        ".",
+        "."
+      ]
+    ]
+
+    test "input 2" do
+      actual = parse(@input2)
+      assert actual == @expected2
+    end
   end
 end
 
@@ -112,13 +353,18 @@ defmodule PartOne do
     if completed_circuit?(starting_coord, current_coord, path_so_far) do
       path_so_far
     else
-      # IO.inspect(current_coord, label: "current_coord")
-      possible_next_coords(graph, current_coord)
-      |> Enum.reject(fn coord -> coord == List.first(path_so_far) end)
-      |> Enum.map(fn next_coord ->
-        traverse_circuit(graph, starting_coord, next_coord, [current_coord | path_so_far])
-      end)
-      |> hd()
+      possible_next_coords = possible_next_coords(graph, current_coord)
+
+      rejected_bit =
+        possible_next_coords |> Enum.reject(fn coord -> coord == List.first(path_so_far) end)
+
+      mapped_bit =
+        rejected_bit
+        |> Enum.map(fn next_coord ->
+          traverse_circuit(graph, starting_coord, next_coord, [current_coord | path_so_far])
+        end)
+
+      mapped_bit |> hd()
     end
   end
 
@@ -136,23 +382,23 @@ defmodule PartOne do
   end
 
   defp east_viable?(graph, current_y, current_x) do
-    cell_at(graph, current_y, current_x) in ["S", "-", "L", "F"] &&
-      cell_east_of(graph, current_y, current_x) in ["S", "-", "J", "7"]
+    pointing_east?(cell_at(graph, current_y, current_x)) &&
+      pointing_west?(cell_east_of(graph, current_y, current_x))
   end
 
   defp south_viable?(graph, current_y, current_x) do
-    cell_at(graph, current_y, current_x) in ["S", "|", "7", "F"] &&
-      cell_south_of(graph, current_y, current_x) in ["S", "|", "L", "J"]
+    pointing_south?(cell_at(graph, current_y, current_x)) &&
+      pointing_north?(cell_south_of(graph, current_y, current_x))
   end
 
   defp west_viable?(graph, current_y, current_x) do
-    cell_at(graph, current_y, current_x) in ["S", "-", "J", "7"] &&
-      cell_west_of(graph, current_y, current_x) in ["S", "-", "L", "F"]
+    pointing_west?(cell_at(graph, current_y, current_x)) &&
+      pointing_east?(cell_west_of(graph, current_y, current_x))
   end
 
   defp north_viable?(graph, current_y, current_x) do
-    cell_at(graph, current_y, current_x) in ["S", "|", "L", "J"] &&
-      cell_north_of(graph, current_y, current_x) in ["S", "|", "7", "F"]
+    pointing_north?(cell_at(graph, current_y, current_x)) &&
+      pointing_south?(cell_north_of(graph, current_y, current_x))
   end
 
   defp coord_east_of(graph, current_y, current_x) do
@@ -192,7 +438,23 @@ defmodule PartOne do
   end
 
   defp cell_at(graph, y, x) do
-    Enum.at(graph, y) |> Enum.at(x)
+    (Enum.at(graph, y) || []) |> Enum.at(x)
+  end
+
+  def pointing_east?(cell) do
+    cell in ["S", "-", "L", "F"]
+  end
+
+  def pointing_south?(cell) do
+    cell in ["S", "|", "7", "F"]
+  end
+
+  def pointing_west?(cell) do
+    cell in ["S", "-", "J", "7"]
+  end
+
+  def pointing_north?(cell) do
+    cell in ["S", "|", "L", "J"]
   end
 
   defp completed_circuit?(starting_coord, current_coord, path_so_far) do
@@ -289,8 +551,6 @@ defmodule PartOneTest do
         [".", "L", "J", "."],
         [".", ".", ".", "."]
       ]
-
-      IO.puts("HERE")
 
       assert traverse_circuit(
                input,
@@ -408,6 +668,8 @@ PartOne.solve(puzzle_input)
 
 ```elixir
 defmodule PartTwo do
+  require Integer, [:is_odd, :is_even]
+
   def solve(input) do
     IO.puts("--- Part Two ---")
     IO.puts("Result: #{run(input)}")
@@ -417,6 +679,150 @@ defmodule PartTwo do
     graph = Parser.parse(input_string)
 
     coordinates_of_circuit = PartOne.coordinates_of_circuit(graph)
+    Enum.count(points_inside_circuit(graph, coordinates_of_circuit))
+  end
+
+  # https://en.wikipedia.org/wiki/Point_in_polygon
+  def points_inside_circuit(graph, circuit) do
+    circuit = [equivalent_of_s(circuit) | tl(circuit)]
+
+    graph =
+      Enum.map(graph, fn row ->
+        Enum.map(row, fn cell ->
+          if cell == "S" do
+            {_y, _x, cell} = equivalent_of_s(circuit)
+            cell
+          else
+            cell
+          end
+        end)
+      end)
+
+    Enum.map(height_range(graph), fn y ->
+      # Note: Assumes a whole circuit is fully contained by graph,
+      # and that being on the circuit does not count as being contained
+      Enum.reduce(width_range(graph), {[], 0, nil}, fn x,
+                                                       {coords, crossings, prev_crossing_cell} ->
+        reduction_func(graph, circuit, {coords, crossings, prev_crossing_cell}, y, x)
+      end)
+      |> Tuple.to_list()
+      |> hd()
+      |> Enum.reverse()
+    end)
+    |> List.flatten()
+  end
+
+  def equivalent_of_s(circuit) do
+    {ys, xs, _cell} = hd(circuit)
+    {y1, x1, _cell} = Enum.at(circuit, 1)
+    {y2, x2, _cell} = List.last(circuit)
+
+    equivalent_cell =
+      cond do
+        # north and south
+        Enum.any?([y1, y2], &(&1 > ys)) && Enum.any?([y1, y2], &(&1 < ys)) -> "|"
+        # east and west
+        Enum.any?([x1, x2], &(&1 > xs)) && Enum.any?([x1, x2], &(&1 < xs)) -> "-"
+        # any to north and east
+        Enum.any?([x1, x2], &(&1 > xs)) && Enum.any?([y1, y2], &(&1 < ys)) -> "L"
+        # any to north and west
+        Enum.any?([x1, x2], &(&1 < xs)) && Enum.any?([y1, y2], &(&1 < ys)) -> "J"
+        # any to south and west
+        Enum.any?([x1, x2], &(&1 < xs)) && Enum.any?([y1, y2], &(&1 > ys)) -> "7"
+        # any to south and east
+        Enum.any?([x1, x2], &(&1 > xs)) && Enum.any?([y1, y2], &(&1 > ys)) -> "F"
+      end
+
+    {ys, xs, equivalent_cell}
+  end
+
+  defp reduction_func(graph, circuit, {coords, crossings, prev_crossing_cell}, y, x) do
+    row = Enum.at(graph, y)
+    cell = Enum.at(row, x)
+    coord = {y, x, cell}
+
+    in_circuit = coord in circuit
+
+    cond do
+      # Staying outside track
+      Integer.is_even(crossings) && !in_circuit ->
+        {coords, crossings, nil}
+
+      # crossing | means going inside circuit
+      Integer.is_even(crossings) && in_circuit && cell == "|" ->
+        {coords, crossings + 1, nil}
+
+      # started crossing track and continuing along - mark as "crossed" for now, see later if actually going inside
+      Integer.is_even(crossings) && in_circuit && PartOne.pointing_east?(cell) && cell != "-" ->
+        {coords, crossings + 1, cell}
+
+      # continuing along "-"
+      Integer.is_odd(crossings) && in_circuit && cell == "-" ->
+        {coords, crossings, prev_crossing_cell}
+
+      # a) finishing crossing and the circuit going in same direction again   -> INSIDE now
+      Integer.is_odd(crossings) && in_circuit && zigzag?(prev_crossing_cell, cell) ->
+        {coords, crossings, nil}
+
+      # b) finishing crossing and the circuit going in back in prev direction -> OUTSIDE still
+      Integer.is_odd(crossings) && in_circuit && turnaround?(prev_crossing_cell, cell) ->
+        {coords, crossings + 1, nil}
+
+      # Staying inside track
+      Integer.is_odd(crossings) && !in_circuit ->
+        {[coord | coords], crossings, nil}
+
+      # crossing | means going outside circuit again
+      Integer.is_odd(crossings) && in_circuit && cell == "|" ->
+        {coords, crossings + 1, nil}
+
+      # started crossing track and continuing along - mark as "crossed" for now, see later if actually going outside
+      Integer.is_odd(crossings) && in_circuit && PartOne.pointing_east?(cell) ->
+        {coords, crossings + 1, cell}
+
+      # continuing along "-"
+      Integer.is_even(crossings) && in_circuit && cell == "-" ->
+        {coords, crossings, prev_crossing_cell}
+
+      # a) finishing crossing and the circuit going in same direction again   -> OUTSIDE now
+      Integer.is_even(crossings) && in_circuit && zigzag?(prev_crossing_cell, cell) ->
+        {coords, crossings, nil}
+
+      # b) finishing crossing and the circuit going in back in prev direction -> INSIDE still
+      Integer.is_even(crossings) && in_circuit && turnaround?(prev_crossing_cell, cell) ->
+        {coords, crossings + 1, nil}
+    end
+  end
+
+  def zigzag?({_, _, first_cell}, {_, _, second_cell}), do: zigzag?(first_cell, second_cell)
+
+  def zigzag?(first_cell, second_cell) do
+    (PartOne.pointing_north?(first_cell) && PartOne.pointing_south?(second_cell)) ||
+      (PartOne.pointing_south?(first_cell) && PartOne.pointing_north?(second_cell))
+  end
+
+  def turnaround?({_, _, first_cell}, {_, _, second_cell}),
+    do: turnaround?(first_cell, second_cell)
+
+  def turnaround?(first_cell, second_cell) do
+    (PartOne.pointing_north?(first_cell) && PartOne.pointing_north?(second_cell)) ||
+      (PartOne.pointing_south?(first_cell) && PartOne.pointing_south?(second_cell))
+  end
+
+  defp width_range(graph) do
+    0..(width(graph) - 1)
+  end
+
+  defp height_range(graph) do
+    0..(height(graph) - 1)
+  end
+
+  defp width(graph) do
+    length(hd(graph))
+  end
+
+  defp height(graph) do
+    length(graph)
   end
 end
 ```
@@ -442,24 +848,24 @@ defmodule PartTwoTest do
   ...........
   """
 
+  @input2 """
+  .F----7F7F7F7F-7....
+  .|F--7||||||||FJ....
+  .||.FJ||||||||L7....
+  FJL7L7LJLJ||LJ.L-7..
+  L--J.L7...LJS7F-7L7.
+  ....F-J..F7FJ|L7L7L7
+  ....L7.F7||L7|.L7L7|
+  .....|FJLJ|FJ|F7|.LJ
+  ....FJL-7.||.||||...
+  ....L---J.LJ.LJLJ...
+  """
+
   describe "run" do
     test "example 1" do
       actual = run(@input1)
       assert actual == 4
     end
-
-    @input2 """
-    .F----7F7F7F7F-7....
-    .|F--7||||||||FJ....
-    .||.FJ||||||||L7....
-    FJL7L7LJLJ||LJ.L-7..
-    L--J.L7...LJS7F-7L7.
-    ....F-J..F7FJ|L7L7L7
-    ....L7.F7||L7|.L7L7|
-    .....|FJLJ|FJ|F7|.LJ
-    ....FJL-7.||.||||...
-    ....L---J.LJ.LJLJ...
-    """
 
     test "example 2" do
       actual = run(@input2)
@@ -467,10 +873,153 @@ defmodule PartTwoTest do
     end
   end
 
-  describe "point_in_perimeter?/3" do
-    graph = Parser.parse(@input1)
-    circuit = PartOne.coordinates_of_circuit(graph)
-    # assert coordinate_in_perimeter?(graph, circuit, {}) == 3
+  describe "points_inside_circuit/2" do
+    @graph1 [
+      [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+      [".", "S", "-", "-", "-", "-", "-", "-", "-", "7", "."],
+      [".", "|", "F", "-", "-", "-", "-", "-", "7", "|", "."],
+      [".", "|", "|", ".", ".", ".", ".", ".", "|", "|", "."],
+      [".", "|", "|", ".", ".", ".", ".", ".", "|", "|", "."],
+      [".", "|", "L", "-", "7", ".", "F", "-", "J", "|", "."],
+      [".", "|", ".", ".", "|", ".", "|", ".", ".", "|", "."],
+      [".", "L", "-", "-", "J", ".", "L", "-", "-", "J", "."],
+      [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."]
+    ]
+
+    @circuit1 [
+      {1, 1, "S"},
+      {1, 2, "-"},
+      {1, 3, "-"},
+      {1, 4, "-"},
+      {1, 5, "-"},
+      {1, 6, "-"},
+      {1, 7, "-"},
+      {1, 8, "-"},
+      {1, 9, "7"},
+      {2, 9, "|"},
+      {3, 9, "|"},
+      {4, 9, "|"},
+      {5, 9, "|"},
+      {6, 9, "|"},
+      {7, 9, "J"},
+      {7, 8, "-"},
+      {7, 7, "-"},
+      {7, 6, "L"},
+      {6, 6, "|"},
+      {5, 6, "F"},
+      {5, 7, "-"},
+      {5, 8, "J"},
+      {4, 8, "|"},
+      {3, 8, "|"},
+      {2, 8, "7"},
+      {2, 7, "-"},
+      {2, 6, "-"},
+      {2, 5, "-"},
+      {2, 4, "-"},
+      {2, 3, "-"},
+      {2, 2, "F"},
+      {3, 2, "|"},
+      {4, 2, "|"},
+      {5, 2, "L"},
+      {5, 3, "-"},
+      {5, 4, "7"},
+      {6, 4, "|"},
+      {7, 4, "J"},
+      {7, 3, "-"},
+      {7, 2, "-"},
+      {7, 1, "L"},
+      {6, 1, "|"},
+      {5, 1, "|"},
+      {4, 1, "|"},
+      {3, 1, "|"},
+      {2, 1, "|"}
+    ]
+
+    test "finds coordinates inside circuit simple example" do
+      assert points_inside_circuit(@graph1, @circuit1) == [
+               {6, 2, "."},
+               {6, 3, "."},
+               {6, 7, "."},
+               {6, 8, "."}
+             ]
+    end
+
+    test "finds coordinates inside circuit complex example" do
+      graph = Parser.parse(@input2)
+      circuit = PartOne.coordinates_of_circuit(graph)
+
+      assert points_inside_circuit(graph, circuit) == [
+               {3, 14, "."},
+               {4, 7, "."},
+               {4, 8, "."},
+               {4, 9, "."},
+               {5, 7, "."},
+               {5, 8, "."},
+               {6, 6, "."},
+               {6, 14, "."}
+             ]
+    end
+  end
+
+  describe "equivalent_of_s" do
+    @graph1 [
+      [".", ".", ".", ".", "."],
+      [".", "S", "-", "7", "-"],
+      [".", "|", "F", "|", "-"],
+      [".", "|", "|", "|", "."],
+      [".", "L", "-", "J", "."],
+      [".", "|", "L", "-", "7"]
+    ]
+
+    @circuit1 [
+      {1, 1, "S"},
+      {1, 2, "-"},
+      {1, 3, "7"},
+      {2, 3, "|"},
+      {3, 3, "|"},
+      {4, 3, "J"},
+      {4, 2, "-"},
+      {4, 1, "L"},
+      {3, 1, "|"},
+      {2, 1, "|"}
+    ]
+
+    test "simple example" do
+      assert PartOne.coordinates_of_circuit(@graph1) == @circuit1
+      assert equivalent_of_s(@circuit1) == {1, 1, "F"}
+    end
+  end
+
+  describe "zigzag?/2" do
+    test "false examples" do
+      assert zigzag?("F", "7") == false
+      assert zigzag?("L", "J") == false
+    end
+
+    test "true examples" do
+      assert zigzag?("F", "J") == true
+      assert zigzag?("L", "7") == true
+    end
+
+    test "works with coordinate inputs" do
+      assert zigzag?({1, 1, "F"}, {1, 9, "7"}) == false
+    end
+  end
+
+  describe "turnaround?/2" do
+    test "true examples" do
+      assert turnaround?("F", "7") == true
+      assert turnaround?("L", "J") == true
+    end
+
+    test "false examples" do
+      assert turnaround?("F", "J") == false
+      assert turnaround?("L", "7") == false
+    end
+
+    test "works with coordinate inputs" do
+      assert turnaround?({1, 1, "F"}, {1, 9, "7"}) == true
+    end
   end
 end
 
@@ -483,4 +1032,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":11299,"stamp":{"token":"XCP.zqLaWDO6k3YG-pMune0qYX7bhwm05xSMufpaQQCtYNw3fFIHD9i7BhsVgSFVs4P7deL2oLgwcNQXQgscsDlVFVrdn7cYCw4Em798aXcPho86mqaeD6k","version":2}} -->
+<!-- livebook:{"offset":23387,"stamp":{"token":"XCP.vGrH4D-emdGl1aLsGiuY45tHntaHqfiv191hxv3kcSn0XN98q_u4_vWdLD58PkfMriNsscdBMVEZbw1LTjnCDTcsQFRg9KUiFaNGtGLSCzp8W2mwuCM","version":2}} -->
