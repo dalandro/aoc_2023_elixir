@@ -1,0 +1,419 @@
+# Advent of Code - Day 11
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"11","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "11", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse(input) do
+    String.split(input, "\n", trim: true)
+    |> Enum.map(fn string -> String.split(string, "", trim: true) end)
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input1 """
+  ...#......
+  .......#..
+  #.........
+  ..........
+  ......#...
+  .#........
+  .........#
+  ..........
+  .......#..
+  #...#.....
+  """
+
+  @expected1 [
+    [".", ".", ".", "#", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", "#", ".", "."],
+    ["#", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", "#", ".", ".", "."],
+    [".", "#", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "#"],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", "#", ".", "."],
+    ["#", ".", ".", ".", "#", ".", ".", ".", ".", "."]
+  ]
+
+  describe "parse test" do
+    test "input 1" do
+      actual = parse(@input1)
+      assert actual == @expected1
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    input_string
+    |> Parser.parse()
+    |> expand_image()
+    |> coordinates_of_galaxies()
+    |> pairs()
+    |> Enum.map(fn pair -> distance(pair) end)
+    |> Enum.sum()
+  end
+
+  def expand_image(image) do
+    image
+    |> expand_rows()
+    |> expand_columns()
+  end
+
+  def coordinates_of_galaxies(image) do
+    Enum.with_index(image)
+    |> Enum.reduce([], fn {row, row_idx}, res ->
+      sub_res =
+        Enum.with_index(row)
+        |> Enum.filter(fn {cell, _col_idx} -> cell == "#" end)
+        |> Enum.map(fn {_cell, col_idx} -> {row_idx, col_idx} end)
+        |> Enum.reverse()
+
+      [sub_res | res]
+    end)
+    |> List.flatten()
+    |> Enum.reverse()
+  end
+
+  def pairs(elements) do
+    for i <- elements, j <- elements, i != j, do: Enum.sort([i, j]), into: MapSet.new()
+  end
+
+  def distance([coord1, coord2]), do: distance(coord1, coord2)
+
+  def distance({row_idx1, col_idx1}, {row_idx2, col_idx2}) do
+    diff = fn list -> Enum.max(list) - Enum.min(list) end
+    ([row_idx1, row_idx2] |> diff.()) + ([col_idx1, col_idx2] |> diff.())
+  end
+
+  def expand_rows(image) do
+    empty_row = Enum.map(1..length(hd(image)), fn _ -> "." end)
+
+    rows_with_no_galaxies(image)
+    |> Enum.sort()
+    |> Enum.reverse()
+    |> Enum.reduce(image, fn idx, expanded_image ->
+      List.insert_at(expanded_image, idx, empty_row)
+    end)
+  end
+
+  def expand_columns(image) do
+    expand_rows(transpose(image)) |> transpose()
+  end
+
+  def rows_with_no_galaxies(image) do
+    image
+    |> Enum.with_index()
+    |> Enum.filter(fn {row, _idx} -> "#" not in row end)
+    |> Enum.map(fn {_row, idx} -> idx end)
+  end
+
+  def columns_with_no_galaxies(image) do
+    transpose(image) |> rows_with_no_galaxies
+  end
+
+  def transpose(image) do
+    Enum.zip(image)
+    |> Enum.map(&Tuple.to_list(&1))
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @raw_input """
+  ...#......
+  .......#..
+  #.........
+  ..........
+  ......#...
+  .#........
+  .........#
+  ..........
+  .......#..
+  #...#.....
+  """
+
+  @parsed_input [
+    [".", ".", ".", "#", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", "#", ".", "."],
+    ["#", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", "#", ".", ".", "."],
+    [".", "#", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "#"],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", "#", ".", "."],
+    ["#", ".", ".", ".", "#", ".", ".", ".", ".", "."]
+  ]
+
+  @expanded_input [
+    [".", ".", ".", ".", "#", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "#", ".", ".", "."],
+    ["#", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
+    [".", "#", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "#"],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "#", ".", ".", "."],
+    ["#", ".", ".", ".", ".", "#", ".", ".", ".", ".", ".", ".", "."]
+  ]
+
+  @expected1 374
+
+  test "simple example 1" do
+    actual = run(@raw_input)
+    assert actual == @expected1
+  end
+
+  describe "expand_image/1" do
+    test "simple example" do
+      actual = expand_image(@parsed_input)
+      assert actual == @expanded_input
+    end
+  end
+
+  describe "coordinates_of_galaxies/1" do
+    test "simple example" do
+      expected = [{0, 4}, {1, 9}, {2, 0}, {5, 8}, {6, 1}, {7, 12}, {10, 9}, {11, 0}, {11, 5}]
+      assert coordinates_of_galaxies(@expanded_input) == expected
+    end
+  end
+
+  describe "pairs/1" do
+    test "simple example" do
+      assert Enum.count(pairs(coordinates_of_galaxies(@expanded_input))) == 36
+    end
+  end
+
+  describe "distance/2" do
+    test "simple example" do
+      assert distance({0, 4}, {10, 9}) == 15
+      assert distance({2, 0}, {7, 12}) == 17
+      assert distance({11, 0}, {11, 5}) == 5
+    end
+  end
+
+  # 0123456789012 
+  # ....1........ 0
+  # .........2... 1
+  # 3............ 2
+  # ............. 3
+  # ............. 4
+  # ........4.... 5
+  # .5........... 6
+  # ............6 7
+  # ............. 8
+  # ............. 9
+  # .........7... 0
+  # 8....9....... 1
+  # 0123456789012
+
+  describe "expand_rows/1" do
+    test "simple example" do
+      expected = [
+        [".", ".", ".", "#", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", "#", ".", "."],
+        ["#", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", "#", ".", ".", "."],
+        [".", "#", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "#"],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", "#", ".", "."],
+        ["#", ".", ".", ".", "#", ".", ".", ".", ".", "."]
+      ]
+
+      actual = expand_rows(@parsed_input)
+      assert actual == expected
+    end
+  end
+
+  describe "expand_columns/1" do
+    test "simple example" do
+      input = [
+        #           2              5              8
+        [".", ".", ".", "#", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", "#", ".", "."],
+        ["#", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", "#", ".", ".", "."],
+        [".", "#", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "#"],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", "#", ".", "."],
+        ["#", ".", ".", ".", "#", ".", ".", ".", ".", "."]
+      ]
+
+      expected = [
+        #           2    2              5    5              8    8
+        [".", ".", ".", ".", "#", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "#", ".", ".", "."],
+        ["#", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
+        [".", "#", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "#"],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        [".", ".", ".", ".", ".", ".", ".", ".", ".", "#", ".", ".", "."],
+        ["#", ".", ".", ".", ".", "#", ".", ".", ".", ".", ".", ".", "."]
+      ]
+
+      actual = expand_columns(input)
+      assert actual == expected
+    end
+  end
+
+  describe "rows_with_no_galaxies/1" do
+    test "simple example" do
+      assert rows_with_no_galaxies(@parsed_input) == [3, 7]
+    end
+  end
+
+  describe "columns_with_no_galaxies/1" do
+    test "simple example" do
+      assert columns_with_no_galaxies(@parsed_input) == [2, 5, 8]
+    end
+  end
+
+  describe "transpose/1" do
+    test "simple example" do
+      input = [[1, 2, 3], [4, 5, 6]]
+      expected = [[1, 4], [2, 5], [3, 6]]
+      assert transpose(input) == expected
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  require Integer, [:is_odd, :is_even]
+
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @raw_input """
+  ...#......
+  .......#..
+  #.........
+  ..........
+  ......#...
+  .#........
+  .........#
+  ..........
+  .......#..
+  #...#.....
+  """
+
+  describe "run" do
+    test "example 1" do
+      actual = run(@raw_input)
+      assert actual == 4
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":10772,"stamp":{"token":"XCP.Rw8mgcLj6dpNSfufN9O_fDT_uZaIT1ahfgOf4gv9bbKyOLOngCwGrsgcBVkIofvaN5sJnN-kQ6_uHFb4AGtUzap_ikhBqIGU3DecZumocHSyopeH4es","version":2}} -->
