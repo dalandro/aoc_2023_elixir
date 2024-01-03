@@ -1,0 +1,347 @@
+# Advent of Code - Day 12
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"12","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "12", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse(input) do
+    String.split(input, "\n", trim: true)
+    |> Enum.map(fn row ->
+      [col, counts] = String.split(row, " ", trim: true)
+      {col, String.split(counts, ",", trim: true) |> Enum.map(&String.to_integer(&1))}
+    end)
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input """
+  ???.### 1,1,3
+  .??..??...?##. 1,1,3
+  ?#?#?#?#?#?#?#? 1,3,1,6
+  ????.#...#... 4,1,1
+  ????.######..#####. 1,6,5
+  ?###???????? 3,2,1
+  """
+
+  @expected [
+    {"???.###", [1, 1, 3]},
+    {".??..??...?##.", [1, 1, 3]},
+    {"?#?#?#?#?#?#?#?", [1, 3, 1, 6]},
+    {"????.#...#...", [4, 1, 1]},
+    {"????.######..#####.", [1, 6, 5]},
+    {"?###????????", [3, 2, 1]}
+  ]
+
+  describe "parse/1" do
+    test "simple example" do
+      assert parse(@input) == @expected
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+    input_tuples = Parser.parse(input_string)
+  end
+
+  def count_of_possible_arrangements({row, counts}) do
+    # regex = ~r/((?:\?|\#){1}).*((?:\?|\#){1}).*((?:\?|\#){3})/
+
+    IO.inspect(row, label: :row)
+    row_list = String.split(row, "", trim: true)
+    IO.inspect(row_list, label: :row_list)
+    IO.inspect(counts, label: :counts)
+
+    # Enum.reduce(counts, {0, 0}, fn count, {res, offset} ->
+    #   Enum.
+    # end)
+
+    # IO.inspect(Regex.scan(regex_from_counts_array(counts), row, return: :index, capture: :all_but_first), label: :indexes)
+    # Regex.scan(regex_from_counts_array(counts), row, return: :index, capture: :all_but_first)
+    # |> hd() 
+    # |> length()
+  end
+
+  def possible_arrangements({row, counts}, so_far \\ "") do
+    _possible_arrangements({row, counts}, so_far)
+    |> List.flatten()
+  end
+
+  defp _possible_arrangements({row, counts}, so_far) when is_bitstring(row) do
+    _possible_arrangements({String.split(row, "", trim: true), counts}, so_far)
+  end
+
+  defp _possible_arrangements({row, counts}, so_far) do
+    # regex = ~r/((?:\?|\#){1}).*((?:\?|\#){1}).*((?:\?|\#){3})/
+
+    IO.inspect(so_far, label: :so_far)
+    IO.inspect(row, label: :row)
+    IO.inspect(counts, label: :counts)
+    IO.puts("")
+
+    # Enum.reduce(row_list, [], fn part, acc ->
+    #   possible_arrangements({tl(row), tl(counts)})
+    #   [part | acc]
+    # end)
+
+    cond do
+      Enum.empty?(row) && !Enum.empty?(counts) ->
+        []
+
+      Enum.empty?(row) || Enum.empty?(counts) ->
+        so_far <> Enum.join(row)
+
+      true ->
+        possible_branches =
+          cond do
+            hd(row) == "#" ->
+              # cont. as definite match
+              [{tl(row), reduce_counts(counts), so_far <> hd(row)}]
+
+            hd(row) == "?" && String.last(so_far) != "#" ->
+              # cont. as possibly a match, and
+              [
+                {tl(row), reduce_counts(counts), so_far <> "#"},
+                # cont. as possibly not a match
+                {tl(row), counts, so_far <> "."}
+              ]
+
+            true ->
+              [{tl(row), counts, so_far <> "."}]
+          end
+
+        # currently value count as match initially, BUT 
+
+        # row: ["?", "#", "?", "#", "?", "#", "?", "#", "?", "#", "?", "#", "?", "#", "?"]
+        # counts: [1, 3, 1, 6]
+
+        Enum.map(possible_branches, fn {row_remaining, counts_remaining, so_far_updated} ->
+          _possible_arrangements({row_remaining, counts_remaining}, so_far_updated)
+        end)
+    end
+
+    # 1,1,3
+    # ....??.??....###.....???????..
+    # "???.###" 
+
+    # IO.inspect(Regex.scan(regex_from_counts_array(counts), row, return: :index, capture: :all_but_first), label: :indexes)
+    # Regex.scan(regex_from_counts_array(counts), row, return: :index, capture: :all_but_first)
+    # |> hd() 
+    # |> Enum.reduce(String.split(row, "", trim: true), fn {idx, _offset}, res -> 
+    #   List.replace_at(res, idx, "#") 
+    # end) 
+    # |> List.to_string()
+    # |> String.replace("?", ".")
+    # |> List.wrap
+  end
+
+  defp reduce_counts([front_count | remaining_counts]) do
+    if front_count - 1 <= 0 do
+      remaining_counts
+    else
+      [front_count - 1 | remaining_counts]
+    end
+  end
+
+  defp regex_from_counts_array(counts) do
+    inner_pattern =
+      Enum.map(counts, fn count ->
+        "[\\?\\#]\{#{to_string(count)}\}"
+      end)
+      |> Enum.join(".+")
+
+    {:ok, pattern} = Regex.compile("(?:(.*" <> inner_pattern <> ".*))")
+
+    IO.inspect(pattern, label: :pattern)
+    pattern
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @raw_input """
+  ???.### 1,1,3
+  .??..??...?##. 1,1,3
+  ?#?#?#?#?#?#?#? 1,3,1,6
+  ????.#...#... 4,1,1
+  ????.######..#####. 1,6,5
+  ?###???????? 3,2,1
+  """
+
+  # describe "run/1" do
+  #   test "main example" do
+  #     assert run(@raw_input) == 21
+  #   end
+  # end
+
+  describe "count_of_possible_arrangements/2" do
+    # test "test 1" do
+    #   actual = possible_arrangements({"???.###",             [1, 1, 3]})
+    #   assert actual == ["#.#.###"]
+    # end
+
+    # test "test 2" do
+    #   actual = possible_arrangements({".??..??...?##.",      [1, 1, 3]})
+    #   assert actual == [".#...#....###.",
+    #                     ".#....#...###.",
+    #                     "..#..#....###.",
+    #                     "..#...#...###."]
+    # end
+
+    test "test 3" do
+      actual = possible_arrangements({"?#?#?#?#?#?#?#?", [1, 3, 1, 6]})
+      assert Enum.count(actual) == 1
+      assert actual == [".#.###.#.######"]
+    end
+
+    # test "test 4" do
+    #   actual = count_of_possible_arrangements({"????.#...#...",       [4, 1, 1]})
+    #   assert Enum.count(actual) == 1
+    #   # assert actual == []
+    # end
+
+    # test "test 5" do
+    #   actual = count_of_possible_arrangements({"????.######..#####.", [1, 6, 5]})
+    #   assert Enum.count(actual) == 4
+    #   # assert actual == []
+    # end
+
+    # test "test 6" do
+    #   actual = possible_arrangements({"?###????????",        [3, 2, 1]})
+    #   assert Enum.count(actual) == 10
+    #   assert actual == [
+    #     ".###.##.#...",
+    #     ".###.##..#..",
+    #     ".###.##...#.",
+    #     ".###.##....#",
+    #     ".###..##.#..",
+    #     ".###..##..#.",
+    #     ".###..##...#",
+    #     ".###...##.#.",
+    #     ".###...##..#",
+    #     ".###....##.#"
+    #   ]
+    # end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+# PartOne.solve(puzzle_input)
+# Parser.parse(puzzle_input) |> length()
+Enum.map(0..100_000, fn _ -> Regex.scan(~r/\?|\#/, ".??..??...?##.") end)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  require Integer, [:is_odd, :is_even]
+
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) do
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @raw_input """
+  ...
+  ..#
+  ...
+  .#.
+  ...
+  """
+
+  @parsed_input [
+    [{0, 0, "."}, {0, 1, "."}, {0, 2, "."}],
+    [{1, 0, "."}, {1, 1, "."}, {1, 2, "#"}],
+    [{2, 0, "."}, {2, 1, "."}, {2, 2, "."}],
+    [{3, 0, "."}, {3, 1, "#"}, {3, 2, "."}],
+    [{4, 0, "."}, {4, 1, "."}, {4, 2, "."}]
+  ]
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":8050,"stamp":{"token":"XCP.m7hIsjCRtBgxUlFGrqjGSwAMPBosIBeE6mefk7LdiUQ7SZQWfs9ew8snKdgcSXWC8o4gzjJSdhViNKTW8vtB7GbxMU9TYDxWq0N0coSM2RJ2ujStjHc","version":2}} -->
