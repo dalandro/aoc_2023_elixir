@@ -2,7 +2,8 @@
 
 ```elixir
 Mix.install([
-  {:kino_aoc, "~> 0.1"}
+  {:kino_aoc, "~> 0.1"},
+  {:eflambe_live, "~> 0.1.0"}
 ])
 ```
 
@@ -12,7 +13,7 @@ Mix.install([
 
 ## Puzzle
 
-<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"12","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+<!-- livebook:{"attrs":{"day":"12","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
 
 ```elixir
 {:ok, puzzle_input} =
@@ -298,8 +299,8 @@ defmodule PartTwo do
     |> Enum.sum()
   end
 
-  def count_of_possible_arrangements({row, counts}) do
-    possible_arrangements({row, counts})
+  def count_of_possible_arrangements({row, counts}, loops \\ 5) do
+    possible_arrangements({row, counts}, loops)
     |> length()
   end
 
@@ -317,8 +318,11 @@ defmodule PartTwo do
 
     {outputs, _} =
       Enum.reduce(1..loops, {[first_input], %{}}, fn loop, {res_list, cache} ->
-        # IO.inspect(loop, label: :loop_count)
-        # IO.inspect(Enum.count(cache), label: :cache_count)
+        IO.inspect(loop, label: :loop_count)
+        IO.inspect(Enum.count(res_list), label: :res_list_count)
+        IO.inspect(Enum.count(cache), label: :cache_count)
+        IO.inspect(:erts_debug.size(cache), label: :cache_size)
+        # IO.inspect(:erts_debug.size(res_list), label: :res_list_size)
 
         {in_outs_tuple, new_cache} =
           Enum.reduce(res_list, {[], cache}, fn {{remaining_row, remaining_counts}, res,
@@ -367,6 +371,16 @@ defmodule PartTwo do
 
                 Map.put_new(inner_cache, inner_input_for_cache, inner_outputs_for_cache)
               end
+
+            # if :rand.uniform(10_000) == 1 do
+            #   IO.inspect(:erts_debug.size(cache), label: :cache_size)       
+            #   IO.inspect(:erts_debug.size(inner_outputs), label: :inner_outputs_size)
+            # end
+
+            # cache_size = :erts_debug.size(new_inner_cache)
+            # if cache_size > 100_000 do
+            #   IO.inspect(cache_size, label: :cache_size_getting_large)
+            # end
 
             {[{inner_input_for_cache, new_inner_outputs} | inner_outputs], new_inner_cache}
           end)
@@ -507,6 +521,10 @@ defmodule PartTwoTest do
       actual = count_of_possible_arrangements({"?###????????", [3, 2, 1]})
       assert actual == 506_250
     end
+
+    # test "from example input - one that gets stuck" do
+    #   actual = count_of_possible_arrangements({"??#??#????????",      [1, 5, 1]}, 5)
+    # end
   end
 
   describe "possible_arrangements considering only a single loop" do
@@ -578,4 +596,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":16279,"stamp":{"token":"XCP.uoVdnmR7q9trUaQwpdjLVf_bNCpjokNKnLwablyYs_vq7tpIKEENLXUqEA-Ql5tvpfjCnqcNgfcqn93t3EJzl9DgGAqXCoVp2eb2quJ53uLOj_DRbkI","version":2}} -->
+<!-- livebook:{"offset":17107,"stamp":{"token":"XCP.Tktrjo-wAFA5LI0eh8I1l7JrxEGuRoauLAje9Fh67EhThWQVVxTizaiVDPHZ0pNEp3BdRYbW7tK2ufq9bqzBYmeMUE9n0_Dvd2dkAhYfQhRteE5qTpA","version":2}} -->
