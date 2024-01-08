@@ -328,13 +328,13 @@ defmodule PartTwo do
         IO.inspect(loop, label: :loop_count)
         # IO.inspect(Enum.count(cache), label: :cache_count)
         # IO.inspect(:erts_debug.size(cache), label: :cache_size)
-        IO.puts("computing inspection...")
+        # IO.puts("computing inspection...")
 
-        IO.inspect(
-          {:erts_debug.size(res_list), res_list |> Enum.count(),
-           Enum.uniq(res_list) |> Enum.count()},
-          label: :res_list_size_count_uniqcount
-        )
+        # IO.inspect(
+        #   {:erts_debug.size(res_list), res_list |> Enum.count(),
+        #    Enum.uniq(res_list) |> Enum.count()},
+        #   label: :res_list_size_count_uniqcount
+        # )
 
         # IO.inspect(res_list, label: :res_list)
         # IO.inspect(cache, label: :cache)
@@ -360,34 +360,34 @@ defmodule PartTwo do
             inner_input_for_cache =
               {{next_row, next_counts}, current_count || hd(next_counts), prev_res_elem}
 
-            new_inner_outputs =
+            {new_inner_outputs, new_inner_cache} =
               if Map.has_key?(inner_cache, inner_input_for_cache) do
                 # IO.puts("cache hit :)")
-                inner_cache[inner_input_for_cache]
-                |> Enum.map(fn {{{remaining_row, remaining_counts}, local_res, current_count,
-                                 prev_res_elem}, count_in_cache} ->
-                  {{{remaining_row, remaining_counts}, local_res, current_count, prev_res_elem},
-                   count_in_cache * count}
-                end)
+                new_inner_outputs =
+                  inner_cache[inner_input_for_cache]
+                  |> Enum.map(fn {main, count_in_cache} ->
+                    {main, count_in_cache * count}
+                  end)
+
+                {new_inner_outputs, inner_cache}
               else
                 # IO.puts("cache miss :(")
-                _possible_arrangements(inner_input)
-                |> List.flatten()
-                |> Enum.group_by(fn v -> v end)
-                |> Enum.map(fn {k, v} -> {k, Enum.count(v) * count} end)
-              end
+                new_inner_outputs =
+                  _possible_arrangements(inner_input)
+                  |> List.flatten()
+                  |> Enum.group_by(fn v -> v end)
+                  |> Enum.map(fn {k, v} -> {k, Enum.count(v) * count} end)
 
-            new_inner_cache =
-              if Map.has_key?(inner_cache, inner_input_for_cache) do
-                inner_cache
-              else
                 inner_outputs_for_cache =
                   new_inner_outputs
                   |> Enum.map(fn {main, output_count} ->
                     {main, div(output_count, count)}
                   end)
 
-                Map.put_new(inner_cache, inner_input_for_cache, inner_outputs_for_cache)
+                new_inner_cache =
+                  Map.put_new(inner_cache, inner_input_for_cache, inner_outputs_for_cache)
+
+                {new_inner_outputs, new_inner_cache}
               end
 
             {[{inner_input_for_cache, new_inner_outputs} | inner_outputs], new_inner_cache}
@@ -403,12 +403,12 @@ defmodule PartTwo do
         {outputs, new_cache}
       end)
 
-    IO.puts("computing inspection...")
+    IO.puts("computing inspection...v1")
 
-    IO.inspect(
-      {:erts_debug.size(outputs), outputs |> Enum.count(), Enum.uniq(outputs) |> Enum.count()},
-      label: :outputs_size_count_uniqcount
-    )
+    # IO.inspect(
+    #   {:erts_debug.size(outputs), outputs |> Enum.count(), Enum.uniq(outputs) |> Enum.count()},
+    #   label: :outputs_size_count_uniqcount
+    # )
 
     v1 =
       outputs
@@ -418,11 +418,11 @@ defmodule PartTwo do
         Enum.empty?(remaining_counts) && "#" not in remaining_row
       end)
 
-    IO.puts("computing inspection...")
+    IO.puts("computing inspection...v2")
 
-    IO.inspect({:erts_debug.size(v1), v1 |> Enum.count(), Enum.uniq(v1) |> Enum.count()},
-      label: :v1_size_count_uniqcount
-    )
+    # IO.inspect({:erts_debug.size(v1), v1 |> Enum.count(), Enum.uniq(v1) |> Enum.count()},
+    #   label: :v1_size_count_uniqcount
+    # )
 
     v2 =
       v1
@@ -432,11 +432,11 @@ defmodule PartTwo do
         {local_res <> (Enum.join(remaining_row) |> String.replace("?", ".")), count}
       end)
 
-    IO.puts("computing inspection...")
+    IO.puts("computing inspection...finished v2")
 
-    IO.inspect({:erts_debug.size(v2), v2 |> Enum.count(), Enum.uniq(v2) |> Enum.count()},
-      label: :v2_size_count_uniqcount
-    )
+    # IO.inspect({:erts_debug.size(v2), v2 |> Enum.count(), Enum.uniq(v2) |> Enum.count()},
+    #   label: :v2_size_count_uniqcount
+    # )
 
     v2
     # v3 = v2 |> Enum.reduce([], fn {res, count}, acc -> 
@@ -579,8 +579,10 @@ defmodule PartTwoTest do
     #   actual = count_of_possible_arrangements({"??#??#????????",      [1, 5, 1]}, 5)
     # end
 
-    test "from example input - last loop takes a few seconds" do
+    test "from example input - last loop takes a few seconds (9.5, 11.9, 10.0)" do
       actual = count_of_possible_arrangements({"???????????.", [2, 2]}, 5)
+      # "10.2", 10.6, 9.7 after reducing some map deep matching with simpler "{main, count}"
+      # 9.7, 9.1, 10.4 after computing both {new_inner_outputs, new_inner_cache} together
     end
   end
 
@@ -653,4 +655,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":18805,"stamp":{"token":"XCP.sIbLXwt3qGLHKYWDGqMHR4jvQWkX5V1fCdpIMXTiU7mjmK56QFryOYJwGWmwpzPfMRu0aNxmlMsM7Z9ZTti5b_9u8BcJJPYpHe8FGQYOPipKBJtmBwM","version":2}} -->
+<!-- livebook:{"offset":18940,"stamp":{"token":"XCP.OjbE1d3XMERCYVVuQK8FxHtBJGRGZbd_yqLPcQ4C-_gRf59j1qXRqmv25F9pl0l4dXHIKu5nEItGUqdFgR7GQlXCrky_1ZLMcxvCzvmhBq_TRcANK_Q","version":2}} -->
