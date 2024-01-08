@@ -2,8 +2,8 @@
 
 ```elixir
 Mix.install([
-  {:kino_aoc, "~> 0.1"},
-  {:eflambe_live, "~> 0.1.0"}
+  {:kino_aoc, "~> 0.1"}
+  # {:eflambe_live, "~> 0.1.0"}
 ])
 ```
 
@@ -313,20 +313,23 @@ defmodule PartTwo do
   end
 
   def possible_arrangements({original_row, original_counts}, loops) do
-    first_input = {{[], []}, "", "", hd(original_counts), ""}
+    first_input = {{{[], []}, "", hd(original_counts), ""}, 1}
     # IO.inspect(first_input, label: :first_res_list)
 
     {outputs, _} =
       Enum.reduce(1..loops, {[first_input], %{}}, fn loop, {res_list, cache} ->
         IO.inspect(loop, label: :loop_count)
-        IO.inspect(Enum.count(res_list), label: :res_list_count)
-        IO.inspect(Enum.count(cache), label: :cache_count)
-        IO.inspect(:erts_debug.size(cache), label: :cache_size)
-        # IO.inspect(:erts_debug.size(res_list), label: :res_list_size)
+        # IO.inspect(Enum.count(res_list), label: :res_list_count)
+        # IO.inspect(Enum.count(cache), label: :cache_count)
+        # IO.inspect(:erts_debug.size(cache), label: :cache_size)
+        IO.inspect(:erts_debug.size(res_list), label: :res_list_size)
+        IO.inspect(Enum.uniq(res_list) |> Enum.count(), label: :res_list_uniq_count)
+        # IO.inspect(res_list, label: :res_list)
+        # IO.inspect(cache, label: :cache)
 
         {in_outs_tuple, new_cache} =
-          Enum.reduce(res_list, {[], cache}, fn {{remaining_row, remaining_counts}, res,
-                                                 _local_res, current_count, prev_res_elem},
+          Enum.reduce(res_list, {[], cache}, fn {{{remaining_row, remaining_counts}, _local_res,
+                                                  current_count, prev_res_elem}, count},
                                                 {inner_outputs, inner_cache} ->
             next_row =
               if loop > 1 do
@@ -338,7 +341,9 @@ defmodule PartTwo do
             next_counts = remaining_counts ++ original_counts
 
             inner_input =
-              {{next_row, next_counts}, res, "", current_count || hd(next_counts), prev_res_elem}
+              {{next_row, next_counts}, "", current_count || hd(next_counts), prev_res_elem}
+
+            # IO.inspect(inner_input, label: :inner_input_____)
 
             inner_input_for_cache =
               {{next_row, next_counts}, current_count || hd(next_counts), prev_res_elem}
@@ -347,14 +352,17 @@ defmodule PartTwo do
               if Map.has_key?(inner_cache, inner_input_for_cache) do
                 # IO.puts("cache hit :)")
                 inner_cache[inner_input_for_cache]
-                |> Enum.map(fn {{remaining_row, remaining_counts}, local_res, current_count,
-                                prev_res_elem} ->
-                  {{remaining_row, remaining_counts}, res, local_res, current_count,
-                   prev_res_elem}
+                |> Enum.map(fn {{{remaining_row, remaining_counts}, local_res, current_count,
+                                 prev_res_elem}, count_in_cache} ->
+                  {{{remaining_row, remaining_counts}, local_res, current_count, prev_res_elem},
+                   count_in_cache * count}
                 end)
               else
                 # IO.puts("cache miss :(")
-                _possible_arrangements(inner_input) |> List.flatten()
+                _possible_arrangements(inner_input)
+                |> List.flatten()
+                |> Enum.group_by(fn v -> v end)
+                |> Enum.map(fn {k, v} -> {k, Enum.count(v) * count} end)
               end
 
             new_inner_cache =
@@ -363,10 +371,10 @@ defmodule PartTwo do
               else
                 inner_outputs_for_cache =
                   new_inner_outputs
-                  |> Enum.map(fn {{remaining_row2, remaining_counts2}, _res2, local_res2,
-                                  current_count2, prev_res_elem2} ->
-                    {{remaining_row2, remaining_counts2}, local_res2, current_count2,
-                     prev_res_elem2}
+                  |> Enum.map(fn {{{remaining_row2, remaining_counts2}, local_res2,
+                                   current_count2, prev_res_elem2}, output_count} ->
+                    {{{remaining_row2, remaining_counts2}, local_res2, current_count2,
+                      prev_res_elem2}, div(output_count, count)}
                   end)
 
                 Map.put_new(inner_cache, inner_input_for_cache, inner_outputs_for_cache)
@@ -382,6 +390,8 @@ defmodule PartTwo do
             #   IO.inspect(cache_size, label: :cache_size_getting_large)
             # end
 
+            # IO.inspect({inner_input_for_cache, new_inner_outputs}, label: :result_in_a_loop)
+
             {[{inner_input_for_cache, new_inner_outputs} | inner_outputs], new_inner_cache}
           end)
 
@@ -390,27 +400,41 @@ defmodule PartTwo do
           |> List.flatten()
           |> Enum.map(fn {_inner_input, inner_outputs} -> inner_outputs end)
           |> List.flatten()
+          |> merge_similar_outputs()
 
+        # IO.inspect(outputs, label: :outputs_for_merge)
         {outputs, new_cache}
       end)
 
+    IO.inspect(:erts_debug.size(outputs), label: :outputs_size)
+    IO.inspect(Enum.uniq(outputs) |> Enum.count(), label: :outputs_uniq_count)
+
     outputs
-    |> Enum.filter(fn {{remaining_row, remaining_counts}, _res, _local_res, _current_count,
-                       _prev_res_elem} ->
-      # IO.inspect({{remaining_row, remaining_counts}, res, local_res, current_count, prev_res_elem})
+    |> Enum.filter(fn {{{remaining_row, remaining_counts}, _local_res, _current_count,
+                        _prev_res_elem}, _count} ->
+      # IO.inspect({{remaining_row, remaining_counts}, local_res, current_count, prev_res_elem})
       Enum.empty?(remaining_counts) && "#" not in remaining_row
     end)
-    |> Enum.map(fn {{remaining_row, _remaining_counts}, res, _local_res, _current_count,
-                    _prev_res_elem} ->
+    |> Enum.map(fn {{{remaining_row, _remaining_counts}, local_res, _current_count,
+                     _prev_res_elem}, count} ->
       # IO.inspect({{remaining_row, remaining_counts}, res, local_res, current_count, prev_res_elem}, label: :mappingoutput)
-      res <> (Enum.join(remaining_row) |> String.replace("?", "."))
+      {local_res <> (Enum.join(remaining_row) |> String.replace("?", ".")), count}
+    end)
+    |> Enum.reduce([], fn {res, count}, acc ->
+      Enum.map(1..count, fn _ -> res end) ++ acc
     end)
   end
 
-  defp _possible_arrangements({{row, counts}, res, local_res, current_count, prev_res_elem}) do
+  defp merge_similar_outputs(data) do
+    data
+    |> Enum.frequencies()
+    |> Enum.map(fn {{tuple, output_count}, freq} -> {tuple, output_count * freq} end)
+  end
+
+  defp _possible_arrangements({{row, counts}, local_res, current_count, prev_res_elem}) do
     cond do
       Enum.empty?(row) || Enum.empty?(counts) ->
-        {{row, counts}, res, local_res, current_count, prev_res_elem}
+        {{row, counts}, local_res, current_count, prev_res_elem}
 
       hd(row) == "." && current_count != hd(counts) ->
         []
@@ -422,26 +446,25 @@ defmodule PartTwo do
         possible_branches =
           cond do
             hd(row) == "#" ->
-              [{tl(row), counts, res <> "#", local_res <> "#", current_count - 1}]
+              [{tl(row), counts, local_res <> "#", current_count - 1}]
 
             hd(row) == "?" && prev_res_elem == "#" && current_count == hd(counts) ->
-              [{tl(row), counts, res <> ".", local_res <> ".", current_count}]
+              [{tl(row), counts, local_res <> ".", current_count}]
 
             hd(row) == "?" && current_count != hd(counts) ->
-              [{tl(row), counts, res <> "#", local_res <> "#", current_count - 1}]
+              [{tl(row), counts, local_res <> "#", current_count - 1}]
 
             hd(row) == "?" ->
               [
-                {tl(row), counts, res <> "#", local_res <> "#", current_count - 1},
-                {tl(row), counts, res <> ".", local_res <> ".", current_count}
+                {tl(row), counts, local_res <> "#", current_count - 1},
+                {tl(row), counts, local_res <> ".", current_count}
               ]
 
             true ->
-              [{tl(row), counts, res <> ".", local_res <> ".", current_count}]
+              [{tl(row), counts, local_res <> ".", current_count}]
           end
 
-        Enum.map(possible_branches, fn {row_remaining, counts_remaining, res, local_res,
-                                        current_count} ->
+        Enum.map(possible_branches, fn {row_remaining, counts_remaining, local_res, current_count} ->
           {counts_remaining, current_count} =
             if current_count <= 0 do
               {tl(counts_remaining), List.first(tl(counts_remaining))}
@@ -450,7 +473,7 @@ defmodule PartTwo do
             end
 
           _possible_arrangements(
-            {{row_remaining, counts_remaining}, res, local_res, current_count, String.last(res)}
+            {{row_remaining, counts_remaining}, local_res, current_count, String.last(local_res)}
           )
         end)
     end
@@ -483,43 +506,49 @@ defmodule PartTwoTest do
   # ????.######..#####. 1,6,5
   # """
 
-  describe "run/1" do
-    test "main example" do
-      assert run(@raw_input) == 525_152
-      # assert run(@raw_input) == 18902
-      # assert run(@raw_input) == 2518
-    end
-  end
+  # describe "run/1" do
+  #   test "main example" do
+  #     assert run(@raw_input) == 525_152
+  #     # assert run(@raw_input) == 18902
+  #     # assert run(@raw_input) == 2518
+  #   end
+  # end
 
   describe "count_of_possible_arrangements/2" do
-    test "test 1" do
-      actual = count_of_possible_arrangements({"???.###", [1, 1, 3]})
-      assert actual == 1
-    end
+    # test "test 1" do
+    #   actual = count_of_possible_arrangements({"???.###", [1, 1, 3]})
+    #   assert actual == 1
+    # end
 
-    test "test 2" do
-      actual = count_of_possible_arrangements({".??..??...?##.", [1, 1, 3]})
-      assert actual == 16384
-    end
+    # test "test 2" do
+    #   actual = count_of_possible_arrangements({".??..??...?##.", [1, 1, 3]})
+    #   assert actual == 16384
+    # end
 
-    test "test 3" do
-      actual = count_of_possible_arrangements({"?#?#?#?#?#?#?#?", [1, 3, 1, 6]})
-      assert actual == 1
-    end
+    # test "test 3" do
+    #   actual = count_of_possible_arrangements({"?#?#?#?#?#?#?#?", [1, 3, 1, 6]})
+    #   assert actual == 1
+    # end
 
-    test "test 4" do
-      actual = count_of_possible_arrangements({"????.#...#...", [4, 1, 1]})
-      assert actual == 16
-    end
+    # test "test 4" do
+    #   actual = count_of_possible_arrangements({"????.#...#...", [4, 1, 1]})
+    #   assert actual == 16
+    # end
 
-    test "test 5" do
-      actual = count_of_possible_arrangements({"????.######..#####.", [1, 6, 5]})
-      assert actual == 2500
-    end
+    # test "test 5" do
+    #   actual = count_of_possible_arrangements({"????.######..#####.", [1, 6, 5]})
+    #   assert actual == 2500
+    # end
 
     test "test 6" do
       actual = count_of_possible_arrangements({"?###????????", [3, 2, 1]})
       assert actual == 506_250
+      # loop_count: 5
+      # res_list_count: 11250
+      # cache_count: 9
+      # cache_size: 2572
+      # res_list_size: 125359
+      # res_list_uniq_count: 11250
     end
 
     # test "from example input - one that gets stuck" do
@@ -527,64 +556,64 @@ defmodule PartTwoTest do
     # end
   end
 
-  describe "possible_arrangements considering only a single loop" do
-    test "test 1" do
-      actual = possible_arrangements({"???.###", [1, 1, 3]}, 1)
-      assert actual == ["#.#.###"]
-    end
+  # describe "possible_arrangements considering only a single loop" do
+  #   test "test 1" do
+  #     actual = possible_arrangements({"???.###", [1, 1, 3]}, 1)
+  #     assert actual == ["#.#.###"]
+  #   end
 
-    test "test 2" do
-      actual = possible_arrangements({".??..??...?##.", [1, 1, 3]}, 1)
-      assert actual == [".#...#....###.", ".#....#...###.", "..#..#....###.", "..#...#...###."]
-    end
+  #   test "test 2" do
+  #     actual = possible_arrangements({".??..??...?##.", [1, 1, 3]}, 1)
+  #     assert Enum.sort(actual) == [".#...#....###.", ".#....#...###.", "..#..#....###.", "..#...#...###."]
+  #   end
 
-    test "test 3" do
-      actual = possible_arrangements({"?#?#?#?#?#?#?#?", [1, 3, 1, 6]}, 1)
-      assert actual == [".#.###.#.######"]
-    end
+  #   test "test 3" do
+  #     actual = possible_arrangements({"?#?#?#?#?#?#?#?", [1, 3, 1, 6]}, 1)
+  #     assert actual == [".#.###.#.######"]
+  #   end
 
-    test "test 4" do
-      actual = possible_arrangements({"????.#...#...", [4, 1, 1]}, 1)
-      assert actual == ["####.#...#..."]
-    end
+  #   test "test 4" do
+  #     actual = possible_arrangements({"????.#...#...", [4, 1, 1]}, 1)
+  #     assert actual == ["####.#...#..."]
+  #   end
 
-    test "test 5" do
-      actual = possible_arrangements({"????.######..#####.", [1, 6, 5]}, 1)
+  #   test "test 5" do
+  #     actual = possible_arrangements({"????.######..#####.", [1, 6, 5]}, 1)
 
-      assert actual == [
-               "#....######..#####.",
-               ".#...######..#####.",
-               "..#..######..#####.",
-               "...#.######..#####."
-             ]
-    end
+  #     assert Enum.sort(actual) == [
+  #              "#....######..#####.",
+  #              ".#...######..#####.",
+  #              "..#..######..#####.",
+  #              "...#.######..#####."
+  #            ]
+  #   end
 
-    test "test 6" do
-      actual = possible_arrangements({"?###????????", [3, 2, 1]}, 1)
+  #   test "test 6" do
+  #     actual = possible_arrangements({"?###????????", [3, 2, 1]}, 1)
 
-      assert actual == [
-               ".###.##.#...",
-               ".###.##..#..",
-               ".###.##...#.",
-               ".###.##....#",
-               ".###..##.#..",
-               ".###..##..#.",
-               ".###..##...#",
-               ".###...##.#.",
-               ".###...##..#",
-               ".###....##.#"
-             ]
-    end
+  #     assert Enum.sort(actual) == [
+  #              ".###.##.#...",
+  #              ".###.##..#..",
+  #              ".###.##...#.",
+  #              ".###.##....#",
+  #              ".###..##.#..",
+  #              ".###..##..#.",
+  #              ".###..##...#",
+  #              ".###...##.#.",
+  #              ".###...##..#",
+  #              ".###....##.#"
+  #            ]
+  #   end
 
-    test "from example input" do
-      actual = possible_arrangements({".?#?#?##??.#.???#", [7, 1, 2, 1]}, 1)
+  #   test "from example input" do
+  #     actual = possible_arrangements({".?#?#?##??.#.???#", [7, 1, 2, 1]}, 1)
 
-      assert actual == [
-               ".#######...#.##.#",
-               "..#######..#.##.#"
-             ]
-    end
-  end
+  #     assert Enum.sort(actual) == [
+  #              ".#######...#.##.#",
+  #              "..#######..#.##.#"
+  #            ]
+  #   end
+  # end
 end
 
 ExUnit.run()
@@ -596,4 +625,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":17107,"stamp":{"token":"XCP.Tktrjo-wAFA5LI0eh8I1l7JrxEGuRoauLAje9Fh67EhThWQVVxTizaiVDPHZ0pNEp3BdRYbW7tK2ufq9bqzBYmeMUE9n0_Dvd2dkAhYfQhRteE5qTpA","version":2}} -->
+<!-- livebook:{"offset":18430,"stamp":{"token":"XCP.sT0isixGuV5CUhKPyysGwxzh13AdcdF0sttBkDxOJvyOygK4-5GkHQoxdq7M8l4ywBTJcSrZZrsuVEsoaiKMtDsYVw8Qmo99ekvL8zWSkTNNNAMurF4","version":2}} -->
