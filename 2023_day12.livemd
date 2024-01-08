@@ -343,6 +343,8 @@ defmodule PartTwo do
           Enum.reduce(res_list, {[], cache}, fn {{{remaining_row, remaining_counts}, _local_res,
                                                   current_count, prev_res_elem}, count},
                                                 {inner_outputs, inner_cache} ->
+            # IO.puts("marker 1")
+
             next_row =
               if loop > 1 do
                 remaining_row ++ ["?"] ++ original_row
@@ -357,9 +359,11 @@ defmodule PartTwo do
 
             # IO.inspect(inner_input, label: :inner_input_____)
 
+            # IO.puts("marker 2")
             inner_input_for_cache =
               {{next_row, next_counts}, current_count || hd(next_counts), prev_res_elem}
 
+            # IO.puts("marker 3")
             {new_inner_outputs, new_inner_cache} =
               if Map.has_key?(inner_cache, inner_input_for_cache) do
                 # IO.puts("cache hit :)")
@@ -390,15 +394,24 @@ defmodule PartTwo do
                 {new_inner_outputs, new_inner_cache}
               end
 
+            # IO.puts("marker 4")
+
             {[{inner_input_for_cache, new_inner_outputs} | inner_outputs], new_inner_cache}
           end)
+
+        # IO.puts("marker 5 (loop summarizing start)")
 
         outputs =
           in_outs_tuple
           |> List.flatten()
-          |> Enum.map(fn {_inner_input, inner_outputs} -> inner_outputs end)
-          |> List.flatten()
-          |> merge_similar_outputs()
+
+        # IO.puts("marker 6 (loop summarizing did flatten)")
+        outputs = outputs |> Enum.map(fn {_inner_input, inner_outputs} -> inner_outputs end)
+        # IO.puts("marker 7 (loop summarizing did map)")
+        outputs = outputs |> List.flatten()
+        # IO.puts("marker 8 (loop summarizing did flatten)")
+        outputs = outputs |> merge_similar_outputs()
+        # IO.puts("marker 9 (loop summarizing did merge_similar_outputs)")
 
         {outputs, new_cache}
       end)
@@ -450,11 +463,15 @@ defmodule PartTwo do
   end
 
   defp merge_similar_outputs(data) do
-    data
-    |> Enum.reduce(%{}, fn {tuple, output_count}, res ->
-      Map.update(res, tuple, output_count, fn coll_count -> coll_count + output_count end)
-    end)
-    |> Map.to_list()
+    data =
+      data
+      |> Enum.reduce(%{}, fn {tuple, output_count}, res ->
+        Map.update(res, tuple, output_count, fn coll_count -> coll_count + output_count end)
+      end)
+
+    # IO.puts("marker 8.1 (collected into hash)")
+
+    data |> Map.to_list()
   end
 
   defp _possible_arrangements({{row, counts}, local_res, current_count, prev_res_elem}) do
@@ -582,11 +599,18 @@ defmodule PartTwoTest do
     # end
 
     test "from example input - last loop takes a few seconds (9.5, 11.9, 10.0)" do
-      actual = count_of_possible_arrangements({"???????????.", [2, 2]}, 5)
+      actual = count_of_possible_arrangements({"???????????.",        [2, 2]}, 5)
       # "10.2", 10.6, 9.7 after reducing some map deep matching with simpler "{main, count}"
       # 9.7, 9.1, 10.4 after computing both {new_inner_outputs, new_inner_cache} together
       # 1.3, 1.1, 0.9 after replacing frequencies/
     end
+
+    test "from example input - last loop takes a few seconds (6.3, 5.9, 6.0)" do
+      actual = count_of_possible_arrangements({"?#?.??.????????", [2, 1, 1, 2]}, 5)
+    end
+
+    # 108 pretty slow too 
+    # 226 VERY slow - possibly even coz of memory issues meaning process slow down
   end
 
   # describe "possible_arrangements considering only a single loop" do
@@ -658,4 +682,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":19538,"stamp":{"token":"XCP.cBdQogyIb6DAhYxEFydhwzVjzj2Ro9dzPAUskAdFsI9LqNwtr22ApOx4zxxR8wUwl3rDJzEHYUVQuOFoXwrnglMmeO2AH0RZokiHnYttC1-jyZ8Qm-0","version":2}} -->
+<!-- livebook:{"offset":19932,"stamp":{"token":"XCP.3R71z0Z_K-LUZDH-_0yTlav3VBAD2SUD5i3pM7g4sGgUFXvjbbe5mVwyk0xnkzyJ0FzH4wE3vFTJxumSFrJ8VKmDElC-JG8dFb9p8mcZW3haawyPstw","version":2}} -->
