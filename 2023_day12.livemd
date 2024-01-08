@@ -451,8 +451,10 @@ defmodule PartTwo do
 
   defp merge_similar_outputs(data) do
     data
-    |> Enum.frequencies()
-    |> Enum.map(fn {{tuple, output_count}, freq} -> {tuple, output_count * freq} end)
+    |> Enum.reduce(%{}, fn {tuple, output_count}, res ->
+      Map.update(res, tuple, output_count, fn coll_count -> coll_count + output_count end)
+    end)
+    |> Map.to_list()
   end
 
   defp _possible_arrangements({{row, counts}, local_res, current_count, prev_res_elem}) do
@@ -583,6 +585,7 @@ defmodule PartTwoTest do
       actual = count_of_possible_arrangements({"???????????.", [2, 2]}, 5)
       # "10.2", 10.6, 9.7 after reducing some map deep matching with simpler "{main, count}"
       # 9.7, 9.1, 10.4 after computing both {new_inner_outputs, new_inner_cache} together
+      # 1.3, 1.1, 0.9 after replacing frequencies/
     end
   end
 
@@ -655,4 +658,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":18940,"stamp":{"token":"XCP.OjbE1d3XMERCYVVuQK8FxHtBJGRGZbd_yqLPcQ4C-_gRf59j1qXRqmv25F9pl0l4dXHIKu5nEItGUqdFgR7GQlXCrky_1ZLMcxvCzvmhBq_TRcANK_Q","version":2}} -->
+<!-- livebook:{"offset":19538,"stamp":{"token":"XCP.cBdQogyIb6DAhYxEFydhwzVjzj2Ro9dzPAUskAdFsI9LqNwtr22ApOx4zxxR8wUwl3rDJzEHYUVQuOFoXwrnglMmeO2AH0RZokiHnYttC1-jyZ8Qm-0","version":2}} -->
