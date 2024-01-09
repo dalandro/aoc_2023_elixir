@@ -611,6 +611,7 @@ defmodule PartTwoTest do
 
     # 108 pretty slow too 
     # 226 VERY slow - possibly even coz of memory issues meaning process slow down
+    # {"?.?.???????.????????", [1, 1]}
   end
 
   # describe "possible_arrangements considering only a single loop" do
@@ -682,4 +683,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":19932,"stamp":{"token":"XCP.3R71z0Z_K-LUZDH-_0yTlav3VBAD2SUD5i3pM7g4sGgUFXvjbbe5mVwyk0xnkzyJ0FzH4wE3vFTJxumSFrJ8VKmDElC-JG8dFb9p8mcZW3haawyPstw","version":2}} -->
+<!-- livebook:{"offset":19979,"stamp":{"token":"XCP.9GaiEluUFKqyFXGwU018UKJ6_tHk1hzBvEBuKyn0tIBO05meFAXC7V4R-O4N84zNDodlLserv8MiolzLrsLKhp1dOyXufvLNYlTbOByFLjzbQ_Oyamg","version":2}} -->
