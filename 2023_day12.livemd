@@ -330,88 +330,89 @@ defmodule PartTwo do
         # IO.inspect(:erts_debug.size(cache), label: :cache_size)
         # IO.puts("computing inspection...")
 
-        # IO.inspect(
-        #   {:erts_debug.size(res_list), res_list |> Enum.count(),
-        #    Enum.uniq(res_list) |> Enum.count()},
-        #   label: :res_list_size_count_uniqcount
-        # )
+        IO.inspect(
+          {:erts_debug.size(res_list), res_list |> Enum.count(),
+           Enum.uniq(res_list) |> Enum.count()},
+          label: :res_list_size_count_uniqcount
+        )
 
         # IO.inspect(res_list, label: :res_list)
         # IO.inspect(cache, label: :cache)
 
-        {in_outs_tuple, new_cache} =
-          Enum.reduce(res_list, {[], cache}, fn {{{remaining_row, remaining_counts}, _local_res,
-                                                  current_count, prev_res_elem}, count},
-                                                {inner_outputs, inner_cache} ->
-            # IO.puts("marker 1")
+        {outputs, new_cache} =
+          Enum.reduce(
+            res_list,
+            {[], cache},
+            fn {{{remaining_row, remaining_counts}, _local_res, current_count, prev_res_elem},
+                count},
+               {inner_outputs, inner_cache} ->
+              # IO.puts("marker 1")
 
-            next_row =
-              if loop > 1 do
-                remaining_row ++ ["?"] ++ original_row
-              else
-                remaining_row ++ original_row
-              end
+              next_row =
+                if loop > 1 do
+                  remaining_row ++ ["?"] ++ original_row
+                else
+                  remaining_row ++ original_row
+                end
 
-            next_counts = remaining_counts ++ original_counts
+              next_counts = remaining_counts ++ original_counts
 
-            inner_input =
-              {{next_row, next_counts}, "", current_count || hd(next_counts), prev_res_elem}
+              inner_input =
+                {{next_row, next_counts}, "", current_count || hd(next_counts), prev_res_elem}
 
-            # IO.inspect(inner_input, label: :inner_input_____)
+              # IO.inspect(inner_input, label: :inner_input_____)
 
-            # IO.puts("marker 2")
-            inner_input_for_cache =
-              {{next_row, next_counts}, current_count || hd(next_counts), prev_res_elem}
+              # IO.puts("marker 2")
+              inner_input_for_cache =
+                {{next_row, next_counts}, current_count || hd(next_counts), prev_res_elem}
 
-            # IO.puts("marker 3")
-            {new_inner_outputs, new_inner_cache} =
-              if Map.has_key?(inner_cache, inner_input_for_cache) do
-                # IO.puts("cache hit :)")
-                new_inner_outputs =
-                  inner_cache[inner_input_for_cache]
-                  |> Enum.map(fn {main, count_in_cache} ->
-                    {main, count_in_cache * count}
-                  end)
+              # IO.inspect(inner_input_for_cache, label: :inner_input_for_cache)
 
-                {new_inner_outputs, inner_cache}
-              else
-                # IO.puts("cache miss :(")
-                new_inner_outputs =
-                  _possible_arrangements(inner_input)
-                  |> List.flatten()
-                  |> Enum.group_by(fn v -> v end)
-                  |> Enum.map(fn {k, v} -> {k, Enum.count(v) * count} end)
+              # IO.puts("marker 3")
+              {new_inner_outputs, new_inner_cache} =
+                if Map.has_key?(inner_cache, inner_input_for_cache) do
+                  # IO.puts("cache hit :)")
+                  new_inner_outputs =
+                    inner_cache[inner_input_for_cache]
+                    |> Enum.map(fn {main, count_in_cache} ->
+                      {main, count_in_cache * count}
+                    end)
 
-                inner_outputs_for_cache =
-                  new_inner_outputs
-                  |> Enum.map(fn {main, output_count} ->
-                    {main, div(output_count, count)}
-                  end)
+                  {new_inner_outputs, inner_cache}
+                else
+                  # IO.puts("cache miss :(")
+                  new_inner_outputs =
+                    _possible_arrangements(inner_input)
+                    |> List.flatten()
+                    |> Enum.group_by(fn v -> v end)
+                    |> Enum.map(fn {k, v} -> {k, Enum.count(v) * count} end)
 
-                new_inner_cache =
-                  Map.put_new(inner_cache, inner_input_for_cache, inner_outputs_for_cache)
+                  inner_outputs_for_cache =
+                    new_inner_outputs
+                    |> Enum.map(fn {main, output_count} ->
+                      {main, div(output_count, count)}
+                    end)
 
-                {new_inner_outputs, new_inner_cache}
-              end
+                  new_inner_cache =
+                    Map.put_new(inner_cache, inner_input_for_cache, inner_outputs_for_cache)
 
-            # IO.puts("marker 4")
+                  {new_inner_outputs, new_inner_cache}
+                end
 
-            {[{inner_input_for_cache, new_inner_outputs} | inner_outputs], new_inner_cache}
-          end)
+              # IO.puts("marker 4")
 
-        # IO.puts("marker 5 (loop summarizing start)")
+              {[new_inner_outputs | inner_outputs], new_inner_cache}
+            end
+          )
 
-        outputs =
-          in_outs_tuple
-          |> List.flatten()
+        IO.puts("marker 5 (loop summarizing start)")
 
         # IO.puts("marker 6 (loop summarizing did flatten)")
-        outputs = outputs |> Enum.map(fn {_inner_input, inner_outputs} -> inner_outputs end)
         # IO.puts("marker 7 (loop summarizing did map)")
         outputs = outputs |> List.flatten()
-        # IO.puts("marker 8 (loop summarizing did flatten)")
+        IO.puts("marker 8 (loop summarizing did flatten)")
         outputs = outputs |> merge_similar_outputs()
-        # IO.puts("marker 9 (loop summarizing did merge_similar_outputs)")
+        IO.puts("marker 9 (loop summarizing did merge_similar_outputs)")
 
         {outputs, new_cache}
       end)
@@ -610,8 +611,10 @@ defmodule PartTwoTest do
     end
 
     # 108 pretty slow too 
-    # 226 VERY slow - possibly even coz of memory issues meaning process slow down
-    # {"?.?.???????.????????", [1, 1]}
+
+    # test "from example input 226 - can't even finish" do
+    #   actual = count_of_possible_arrangements({"?.?.???????.????????", [1, 1]}, 5)
+    # end
   end
 
   # describe "possible_arrangements considering only a single loop" do
@@ -683,4 +686,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":19979,"stamp":{"token":"XCP.9GaiEluUFKqyFXGwU018UKJ6_tHk1hzBvEBuKyn0tIBO05meFAXC7V4R-O4N84zNDodlLserv8MiolzLrsLKhp1dOyXufvLNYlTbOByFLjzbQ_Oyamg","version":2}} -->
+<!-- livebook:{"offset":19989,"stamp":{"token":"XCP.-_Kb1LeN7sNyPoJZgN___DvH2J1K8yL6QJQ1JIokqQkJj7MQKKhNnAKD2x0NadJcJA43g45dFegU5bNLJ7KOcqCrDJkM7_jo9sbLhu5yAiEJtx-NpCk","version":2}} -->
