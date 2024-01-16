@@ -3,7 +3,6 @@
 ```elixir
 Mix.install([
   {:kino_aoc, "~> 0.1"}
-  # {:eflambe_live, "~> 0.1.0"}
 ])
 ```
 
@@ -27,6 +26,20 @@ Mix.install([
 ```elixir
 defmodule Parser do
   def parse(input) do
+    String.split(input, "\n\n", trim: true)
+    |> Enum.map(fn pattern ->
+      String.split(pattern, "\n", trim: true)
+      |> Enum.map(fn row -> String.split(row, "", trim: true) end)
+    end)
+
+    # |> Enum.chunk_every(2)
+    # |> Enum.map(fn [first_pattern, second_pattern] ->
+    #   # IO.inspect(first_pattern, label: :first_pattern)
+    #   # IO.inspect(second_pattern, label: :second_pattern)
+    #   [first_pattern, second_pattern]
+    #   |> Enum.zip([:first, :second])
+    #   |> Map.new(fn {pattern, name} -> {name, pattern} end)
+    # end)
   end
 end
 ```
@@ -41,13 +54,100 @@ defmodule ParserTest do
   import Parser
 
   @input """
+  #.##..##.
+  ..#.##.#.
+  ##......#
+  ##......#
+  ..#.##.#.
+  ..##..##.
+  #.#.##.#.
+
+  #...##..#
+  #....#..#
+  ..##..###
+  #####.##.
+  #####.##.
+  ..##..###
+  #....#..#
   """
 
-  @expected []
+  @expected [
+    [
+      ["#", ".", "#", "#", ".", ".", "#", "#", "."],
+      [".", ".", "#", ".", "#", "#", ".", "#", "."],
+      ["#", "#", ".", ".", ".", ".", ".", ".", "#"],
+      ["#", "#", ".", ".", ".", ".", ".", ".", "#"],
+      [".", ".", "#", ".", "#", "#", ".", "#", "."],
+      [".", ".", "#", "#", ".", ".", "#", "#", "."],
+      ["#", ".", "#", ".", "#", "#", ".", "#", "."]
+    ],
+    [
+      ["#", ".", ".", ".", "#", "#", ".", ".", "#"],
+      ["#", ".", ".", ".", ".", "#", ".", ".", "#"],
+      [".", ".", "#", "#", ".", ".", "#", "#", "#"],
+      ["#", "#", "#", "#", "#", ".", "#", "#", "."],
+      ["#", "#", "#", "#", "#", ".", "#", "#", "."],
+      [".", ".", "#", "#", ".", ".", "#", "#", "#"],
+      ["#", ".", ".", ".", ".", "#", ".", ".", "#"]
+    ]
+  ]
 
   describe "parse/1" do
     test "simple example" do
       assert parse(@input) == @expected
+    end
+
+    test "complex example" do
+      raw_input = """
+      #.##
+      ..#.
+      ##..
+
+      ##..
+      ..#.
+      ..##
+
+      #.#.
+      #...
+      #...
+
+      ..##
+      ####
+      ####
+      """
+
+      expected = [
+        [["#", ".", "#", "#"], [".", ".", "#", "."], ["#", "#", ".", "."]],
+        [["#", "#", ".", "."], [".", ".", "#", "."], [".", ".", "#", "#"]],
+        [["#", ".", "#", "."], ["#", ".", ".", "."], ["#", ".", ".", "."]],
+        [[".", ".", "#", "#"], ["#", "#", "#", "#"], ["#", "#", "#", "#"]]
+      ]
+
+      assert parse(raw_input) == expected
+    end
+
+    test "example with only 1 input" do
+      raw_input = """
+      #.#.##.#.
+      ..##..###
+      #####.##.
+      #####.##.
+      ..##..###
+      #....#..#
+      """
+
+      expected = [
+        [
+          ["#", ".", "#", ".", "#", "#", ".", "#", "."],
+          [".", ".", "#", "#", ".", ".", "#", "#", "#"],
+          ["#", "#", "#", "#", "#", ".", "#", "#", "."],
+          ["#", "#", "#", "#", "#", ".", "#", "#", "."],
+          [".", ".", "#", "#", ".", ".", "#", "#", "#"],
+          ["#", ".", ".", ".", ".", "#", ".", ".", "#"]
+        ]
+      ]
+
+      assert parse(raw_input) == expected
     end
   end
 end
@@ -68,7 +168,53 @@ defmodule PartOne do
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(input_string) do
+  def run(input_string) when is_bitstring(input_string), do: run(Parser.parse(input_string))
+
+  def run(inputs) do
+    inputs
+    |> Enum.reduce(0, fn input, sum ->
+      sum + calculate_reflection_value(input)
+    end)
+  end
+
+  def calculate_reflection_value(input) do
+    (columns_left_of_vertical_reflection(input) || 0) +
+      100 * (rows_above_horizontal_reflection(input) || 0)
+  end
+
+  def columns_left_of_vertical_reflection(pattern, excluding \\ nil) do
+    Enum.find(1..(number_of_columns(pattern) - 1), fn offset ->
+      distance_to_end = number_of_columns(pattern) - 1 - offset
+      distance_to_start = offset - 1
+      search_distance = min(distance_to_end, distance_to_start)
+
+      Enum.all?(0..search_distance, fn inner_offset ->
+        column(pattern, offset - inner_offset - 1) == column(pattern, offset + inner_offset)
+      end) && offset != excluding
+    end)
+  end
+
+  def rows_above_horizontal_reflection(pattern, excluding \\ nil) do
+    Enum.find(1..(length(pattern) - 1), fn offset ->
+      distance_to_end = length(pattern) - 1 - offset
+      distance_to_start = offset - 1
+      search_distance = min(distance_to_end, distance_to_start)
+
+      Enum.all?(0..search_distance, fn inner_offset ->
+        Enum.at(pattern, offset - inner_offset - 1) == Enum.at(pattern, offset + inner_offset)
+      end) && offset * 100 != excluding
+    end)
+  end
+
+  def number_of_columns(pattern) do
+    pattern |> hd() |> length()
+  end
+
+  def column(pattern, idx) do
+    Enum.map(0..(length(pattern) - 1), fn row_idx ->
+      (Enum.at(pattern, row_idx) || [])
+      |> Enum.at(idx)
+    end)
   end
 end
 ```
@@ -83,11 +229,79 @@ defmodule PartOneTest do
   import PartOne
 
   @raw_input """
+  #.##..##.
+  ..#.##.#.
+  ##......#
+  ##......#
+  ..#.##.#.
+  ..##..##.
+  #.#.##.#.
+
+  #...##..#
+  #....#..#
+  ..##..###
+  #####.##.
+  #####.##.
+  ..##..###
+  #....#..#
   """
+
+  @input Parser.parse(@raw_input)
 
   describe "run/1" do
     test "main example" do
-      assert run(@raw_input) == 21
+      assert run(@raw_input) == 405
+    end
+  end
+
+  describe "columns_left_of_vertical_reflection/1" do
+    test "main example" do
+      assert columns_left_of_vertical_reflection(Enum.at(@input, 0)) == 5
+      assert columns_left_of_vertical_reflection(Enum.at(@input, 1)) == nil
+    end
+
+    test "now example with reflection more towards the left" do
+      raw_input = """
+      #.##.###.
+      ##..##.#.
+      #.##.#..#
+
+      #########
+      """
+
+      assert columns_left_of_vertical_reflection(Parser.parse(raw_input) |> hd()) == 3
+    end
+  end
+
+  describe "rows_above_horizontal_reflection/1" do
+    test "main example" do
+      assert rows_above_horizontal_reflection(Enum.at(@input, 0)) == nil
+      assert rows_above_horizontal_reflection(Enum.at(@input, 1)) == 4
+    end
+
+    test "now example with reflection more towards the top" do
+      raw_input = """
+      #.#.##.#.
+      ..##..###
+      #####.##.
+      #####.##.
+      ..##..###
+      #....#..#
+      """
+
+      assert rows_above_horizontal_reflection(Parser.parse(raw_input) |> hd()) == nil
+    end
+  end
+
+  describe "number_of_columns/2" do
+    test "main example" do
+      assert number_of_columns(Enum.at(@input, 0)) == 9
+    end
+  end
+
+  describe "column/2" do
+    test "main example" do
+      assert column(Enum.at(@input, 0), 0) == ["#", ".", "#", "#", ".", ".", "#"]
     end
   end
 end
@@ -116,7 +330,50 @@ defmodule PartTwo do
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(input_string) do
+  def run(input_string) when is_bitstring(input_string), do: run(Parser.parse(input_string))
+
+  def run(inputs) do
+    Enum.reduce(inputs, 0, fn input, sum ->
+      regular_reflection_value = calculate_reflection_value(input)
+
+      Enum.find_value(0..(length(input) - 1), fn row_idx ->
+        Enum.find_value(0..(PartOne.number_of_columns(input) - 1), fn col_idx ->
+          current_res =
+            calculate_reflection_value(
+              invert_at(input, row_idx, col_idx),
+              regular_reflection_value
+            )
+
+          if current_res && current_res != regular_reflection_value do
+            current_res
+          else
+            nil
+          end
+        end)
+      end) + sum
+    end)
+  end
+
+  def invert_at(input, row_idx, col_idx) do
+    List.update_at(input, row_idx, fn row ->
+      List.update_at(row, col_idx, fn cell -> invert(cell) end)
+    end)
+  end
+
+  defp invert("."), do: "#"
+  defp invert("#"), do: "."
+
+  def calculate_reflection_value(input, excluding \\ nil) do
+    cond do
+      res = PartOne.rows_above_horizontal_reflection(input, excluding) ->
+        res * 100
+
+      res = PartOne.columns_left_of_vertical_reflection(input, excluding) ->
+        res
+
+      true ->
+        nil
+    end
   end
 end
 ```
@@ -131,11 +388,105 @@ defmodule PartTwoTest do
   import PartTwo
 
   @raw_input """
+  #.##..##.
+  ..#.##.#.
+  ##......#
+  ##......#
+  ..#.##.#.
+  ..##..##.
+  #.#.##.#.
+
+  #...##..#
+  #....#..#
+  ..##..###
+  #####.##.
+  #####.##.
+  ..##..###
+  #....#..#
   """
 
   describe "run/1" do
     test "main example" do
-      assert run(@raw_input) == 525_152
+      assert run(@raw_input) == 400
+    end
+
+    test "example from input" do
+      raw_input = """
+      ###.#####.#
+      ###.#####.#
+      #..##.####.
+      ####.#...#.
+      #.....#..##
+      .##.#..##.#
+      ##.##.#...#
+      ##.##.#...#
+      .#..#..##.#
+      #.....#..##
+      ####.#...#.
+      """
+
+      # would be 100
+      assert run(raw_input) == 700
+    end
+  end
+
+  describe "invert_at" do
+    test "example from input" do
+      raw_input = """
+      ###.#####.#
+      ###.#####.#
+      #..##.####.
+      ####.#...#.
+      #.....#..##
+      .##.#..##.#
+      ##.##.#...#
+      ##.##.#...#
+      .#..#..##.#
+      #.....#..##
+      ####.#...#.
+      """
+
+      input = raw_input |> Parser.parse() |> hd()
+
+      assert invert_at(input, 0, 0) |> Enum.at(0) |> Enum.join("") == ".##.#####.#"
+      assert invert_at(input, 0, 1) |> Enum.at(0) |> Enum.join("") == "#.#.#####.#"
+      assert invert_at(input, 0, 3) |> Enum.at(0) |> Enum.join("") == "#########.#"
+
+      assert invert_at(input, 1, 0) |> Enum.at(1) |> Enum.join("") == ".##.#####.#"
+      assert invert_at(input, 1, 1) |> Enum.at(1) |> Enum.join("") == "#.#.#####.#"
+      assert invert_at(input, 1, 3) |> Enum.at(1) |> Enum.join("") == "#########.#"
+
+      assert invert_at(input, 10, 10) |> Enum.at(10) |> Enum.join("") == "####.#...##"
+    end
+  end
+
+  describe "calculate_reflection_value/1" do
+    test "main example 1" do
+      raw_input = """
+      ..##..##.
+      ..#.##.#.
+      ##......#
+      ##......#
+      ..#.##.#.
+      ..##..##.
+      #.#.##.#.
+      """
+
+      assert calculate_reflection_value(raw_input |> Parser.parse() |> hd()) == 300
+    end
+
+    test "main example 2" do
+      raw_input = """
+      #...##..#
+      #...##..#
+      ..##..###
+      #####.##.
+      #####.##.
+      ..##..###
+      #....#..#
+      """
+
+      assert calculate_reflection_value(raw_input |> Parser.parse() |> hd()) == 100
     end
   end
 end
@@ -149,4 +500,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":2089,"stamp":{"token":"XCP.tf5wblP8Y0PWhtW7ybHe89w4ZqSCodRWIebExh5EEkrEhWKmEiukaZpzyaWLrygDekLi0Vy2gLLEfVYRYNFrg1HQI5jZUKzvUd1NqdNVfoo-fQ2Te44","version":2}} -->
+<!-- livebook:{"offset":11069,"stamp":{"token":"XCP.WXzJQZuDb3vPSrrYlp-czTusL3KlyQ6T1jLBKG5kXGKOKdSG-EnbqBQYy_e5NvD8ktnNAmSWwqRC7hBzVIUlWnNxpi6P-QkwsmIzZiM4DHufILNnFcs","version":2}} -->
