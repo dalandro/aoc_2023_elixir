@@ -1,0 +1,314 @@
+# Advent of Code - Day 14
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"14","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "14", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse(input) do
+    String.split(input, "\n\n", trim: true)
+    |> Enum.map(fn pattern ->
+      String.split(pattern, "\n", trim: true)
+      |> Enum.map(fn row -> String.split(row, "", trim: true) end)
+    end)
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input """
+  O....#....
+  O.OO#....#
+  .....##...
+  OO.#O....O
+  .O.....O#.
+  O.#..O.#.#
+  ..O..#O..O
+  .......O..
+  #....###..
+  #OO..#....
+
+  #...##..#
+  #....#..#
+  ..##..###
+  #####.##.
+  #####.##.
+  ..##..###
+  #....#..#
+  """
+
+  @expected [
+    [
+      ["O", ".", ".", ".", ".", "#", ".", ".", ".", "."],
+      ["O", ".", "O", "O", "#", ".", ".", ".", ".", "#"],
+      [".", ".", ".", ".", ".", "#", "#", ".", ".", "."],
+      ["O", "O", ".", "#", "O", ".", ".", ".", ".", "O"],
+      [".", "O", ".", ".", ".", ".", ".", "O", "#", "."],
+      ["O", ".", "#", ".", ".", "O", ".", "#", ".", "#"],
+      [".", ".", "O", ".", ".", "#", "O", ".", ".", "O"],
+      [".", ".", ".", ".", ".", ".", ".", "O", ".", "."],
+      ["#", ".", ".", ".", ".", "#", "#", "#", ".", "."],
+      ["#", "O", "O", ".", ".", "#", ".", ".", ".", "."]
+    ],
+    [
+      ["#", ".", ".", ".", "#", "#", ".", ".", "#"],
+      ["#", ".", ".", ".", ".", "#", ".", ".", "#"],
+      [".", ".", "#", "#", ".", ".", "#", "#", "#"],
+      ["#", "#", "#", "#", "#", ".", "#", "#", "."],
+      ["#", "#", "#", "#", "#", ".", "#", "#", "."],
+      [".", ".", "#", "#", ".", ".", "#", "#", "#"],
+      ["#", ".", ".", ".", ".", "#", ".", ".", "#"]
+    ]
+  ]
+
+  describe "parse/1" do
+    test "simple example" do
+      assert parse(@input) == @expected
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) when is_bitstring(input_string), do: run(Parser.parse(input_string))
+
+  def run(inputs) do
+    inputs
+    |> Enum.map(fn input -> total_load(tilt_north(input)) end)
+    |> Enum.sum()
+  end
+
+  def tilt_north(input) do
+    # IO.inspect(0..(length(input) - 1), label: :row_range)
+    # IO.inspect(0..((input |> hd() |> length()) - 1), label: :col_range)
+    Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
+      Enum.reduce(0..((output |> hd() |> length()) - 1), output, fn col_i, output ->
+        # IO.inspect({row_i, col_i}, label: :coord)
+        roll_piece_north(output, row_i, col_i)
+      end)
+    end)
+  end
+
+  def total_load(input) do
+    number_of_rows = length(input)
+
+    input
+    |> Enum.with_index(fn row, index -> {row, number_of_rows - index} end)
+    |> Enum.reduce(0, fn {row, load_factor}, res ->
+      Enum.count(row, fn elem -> elem == "O" end) * load_factor + res
+    end)
+  end
+
+  defp roll_piece_north(input, row_idx, col_idx) do
+    if piece_at(input, row_idx, col_idx) != "O" do
+      input
+    else
+      start_point = {row_idx, col_idx}
+
+      end_point = {
+        Enum.find(row_idx..0, fn i ->
+          # IO.inspect({i, {i - 1, col_idx}, piece_at(input, i - 1, col_idx)}, label: :finding_coord_to_move_to)
+          i == 0 || piece_at(input, i - 1, col_idx) != "."
+        end),
+        col_idx
+      }
+
+      # IO.inspect({input, start_point, end_point}, label: :input_to_move_piece)
+      move_piece(input, start_point, end_point)
+    end
+  end
+
+  defp move_piece(input, {start_row_idx, start_col_idx}, {end_row_idx, end_col_idx}) do
+    res =
+      input
+      |> List.update_at(start_row_idx, fn row ->
+        # IO.inspect({row, start_col_idx}, label: :start_row_to_update)
+        List.update_at(row, start_col_idx, fn "O" -> "." end)
+      end)
+      |> List.update_at(end_row_idx, fn row ->
+        # IO.inspect({row, end_col_idx}, label: :end_row_to_update)
+        List.update_at(row, end_col_idx, fn "." -> "O" end)
+      end)
+
+    # IO.inspect(res, label: :move_piece_Res)
+  end
+
+  defp piece_at(input, row_idx, col_idx) do
+    input |> Enum.at(row_idx) |> Enum.at(col_idx)
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @raw_input """
+  O....#....
+  O.OO#....#
+  .....##...
+  OO.#O....O
+  .O.....O#.
+  O.#..O.#.#
+  ..O..#O..O
+  .......O..
+  #....###..
+  #OO..#....
+  """
+
+  @input Parser.parse(@raw_input) |> hd()
+
+  @expected_tilt [
+    ["O", "O", "O", "O", ".", "#", ".", "O", ".", "."],
+    ["O", "O", ".", ".", "#", ".", ".", ".", ".", "#"],
+    ["O", "O", ".", ".", "O", "#", "#", ".", ".", "O"],
+    ["O", ".", ".", "#", ".", "O", "O", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", "#", "."],
+    [".", ".", "#", ".", ".", ".", ".", "#", ".", "#"],
+    [".", ".", "O", ".", ".", "#", ".", "O", ".", "O"],
+    [".", ".", "O", ".", ".", ".", ".", ".", ".", "."],
+    ["#", ".", ".", ".", ".", "#", "#", "#", ".", "."],
+    ["#", ".", ".", ".", ".", "#", ".", ".", ".", "."]
+  ]
+
+  describe "run/1" do
+    test "main example" do
+      assert run(@raw_input) == 136
+    end
+  end
+
+  describe "tilt_north/1" do
+    test "main example" do
+      assert tilt_north(@input) == @expected_tilt
+    end
+  end
+
+  describe "total_load/1" do
+    test "main example" do
+      assert total_load(@expected_tilt) == 136
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  require Integer, [:is_odd, :is_even]
+
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) when is_bitstring(input_string), do: run(Parser.parse(input_string))
+
+  def run(inputs) do
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @raw_input """
+  #.##..##.
+  ..#.##.#.
+  ##......#
+  ##......#
+  ..#.##.#.
+  ..##..##.
+  #.#.##.#.
+
+  #...##..#
+  #....#..#
+  ..##..###
+  #####.##.
+  #####.##.
+  ..##..###
+  #....#..#
+  """
+
+  describe "run/1" do
+    test "main example" do
+      assert run(@raw_input) == 400
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":6821,"stamp":{"token":"XCP.fkkR6x4kAvC5MaUeLIJSJQyRU58hnOeGt7Xm2JvO6pHvkQyredPtNFqIAMiJrIra_aezQYhpqzrKNnS9SuQJZvpwVBKa9idQa1oKnw9fIq0jkOhCJjg","version":2}} -->

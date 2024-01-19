@@ -500,4 +500,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":11069,"stamp":{"token":"XCP.WXzJQZuDb3vPSrrYlp-czTusL3KlyQ6T1jLBKG5kXGKOKdSG-EnbqBQYy_e5NvD8ktnNAmSWwqRC7hBzVIUlWnNxpi6P-QkwsmIzZiM4DHufILNnFcs","version":2}} -->
+<!-- livebook:{"offset":11069,"stamp":{"token":"XCP.1mJDc10n7lz9DxB0c-E8m2HCM2Kq6g_At1OGNritRaNNEhiWKrLIVzBi-qx9Ge-K2GX3zvqPaj_dfv4a-EbpEMR7KZnWi59PFImAJxnLRv-K6G3ZERk","version":2}} -->
