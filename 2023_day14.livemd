@@ -241,47 +241,47 @@ defmodule PartTwo do
     do: run(Parser.parse(graph_string), iterations)
 
   def run(graph, iterations) do
-    # Enum.reduce(iterations..1, {graph, %{}, nil}, fn iteration, {graph, tally, cycle_length} -> 
-    {res, tally, _} =
-      run(graph, iterations, %{}, nil)
-
-    # end)
-    # IO.inspect(tally |> Map.values(), label: :counts)
+    {res, tally, _} = run(graph, iterations, %{}, nil)
+    IO.inspect(tally |> Map.values(), label: :counts)
 
     res
     |> PartOne.total_load()
   end
 
   def run(graph, iterations_remaining, tally, cycle_length) do
-    if iterations_remaining <= 1 do
-      {graph, tally, cycle_length}
-    else
-      if rem(iterations_remaining, 10_000) == 0, do: IO.inspect(iterations_remaining)
-      res = spin_cycle(graph)
-      if res == graph, do: IO.puts("same result at count #{iterations_remaining}")
-      new_tally = Map.update(tally, res, 1, fn count -> count + 1 end)
-      # if Map.length(new_tally)
+    IO.inspect({tally |> Map.values(), cycle_length, iterations_remaining},
+      label: :tally_beginning
+    )
 
-      cycle_length =
-        cond do
-          !cycle_length && Enum.count(new_tally) == Enum.count(tally) ->
-            1
+    cond do
+      iterations_remaining <= 1 ->
+        {graph, tally, cycle_length}
 
-          cycle_length && Enum.max(Map.values(new_tally)) != Enum.max(Map.values(tally)) ->
-            cycle_length
+      cycle_length && Enum.max([0 | Map.values(tally)]) == 3 ->
+        run(graph, iterations_remaining - div(iterations_remaining, cycle_length), %{}, nil)
 
-          cycle_length ->
-            cycle_length + 1
+      !cycle_length && Enum.max([0 | Map.values(tally)]) == 2 ->
+        run(graph, iterations_remaining, tally, 1)
 
-          true ->
-            cycle_length
-        end
+      true ->
+        res = spin_cycle(graph)
 
-      # IO.inspect({new_tally |> Map.values, cycle_length}, label: :new_tally)
+        if res == graph, do: IO.puts("same result at count #{iterations_remaining}")
 
-      # if cycle_length && max(Map.values(new_tally))
+        new_tally = Map.update(tally, res, 1, fn count -> count + 1 end)
 
-      run(res, iterations_remaining - 1, new_tally, cycle_length)
+        cycle_length =
+          cond do
+            # cycle_length && Enum.max(Map.values(new_tally)) != Enum.max(Map.values(tally)) -> cycle_length
+            cycle_length -> cycle_length + 1
+            true -> cycle_length
+          end
+
+        IO.inspect({new_tally |> Map.values(), cycle_length, iterations_remaining},
+          label: :new_tally
+        )
+
+        run(res, iterations_remaining - 1, new_tally, cycle_length)
     end
   end
 
@@ -493,16 +493,16 @@ defmodule PartTwoTest do
   ]
 
   describe "run/1" do
-    # test "main example" do
-    #   assert run(@raw_input) == 64
-    # end
-
     test "main example" do
-      assert run(@raw_input, 20)
-      # 15.6, 11.2, 12.1
-      # 11.2, 15.4, 14.2 after caching number_of_cols
-      # 11.2, 10.9, 10.2 after caching number_of_rows
+      assert run(@raw_input) == 64
     end
+
+    # test "main example count playground" do
+    #   assert run(@raw_input, 20)
+    #   # 15.6, 11.2, 12.1
+    #   # 11.2, 15.4, 14.2 after caching number_of_cols
+    #   # 11.2, 10.9, 10.2 after caching number_of_rows
+    # end
   end
 
   describe "spin_cycle/1" do
@@ -535,4 +535,4 @@ input = Parser.parse(puzzle_input) |> hd()
 {length(input), length(hd(input))}
 ```
 
-<!-- livebook:{"offset":13906,"stamp":{"token":"XCP.wxQs3RJYwpZ3hQhC4AeT8U0RtSJxMwR0t2RiSc-rslo9A-qC7z_JV7-g8RBCJo0W7mkIH-mfrYF0HAwbIo0spwd5K7yYZUDK0mEyJZTJKldxSBMLhHU","version":2}} -->
+<!-- livebook:{"offset":13984,"stamp":{"token":"XCP.Gya9UhlPdf65_pY0tTLS2iaDIz1m-sLwNc2w0Fb33JSQuU5r0XEDKLb2M9jiWu4nCf1D-a4YjZQTv8kccyP8ZY3qYt8myxhV3RhHp0lkqqeQOW_YAqo","version":2}} -->
