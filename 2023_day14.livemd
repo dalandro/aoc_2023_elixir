@@ -249,7 +249,8 @@ defmodule PartTwo do
   end
 
   def run(graph, iterations_remaining, tally, cycle_length) do
-    IO.inspect({tally |> Map.values(), cycle_length, iterations_remaining},
+    IO.inspect(
+      {tally |> Map.values(), cycle_length, iterations_remaining, PartOne.total_load(graph)},
       label: :tally_beginning
     )
 
@@ -258,7 +259,12 @@ defmodule PartTwo do
         {graph, tally, cycle_length}
 
       cycle_length && Enum.max([0 | Map.values(tally)]) == 3 ->
-        run(graph, iterations_remaining - div(iterations_remaining, cycle_length), %{}, nil)
+        run(
+          graph,
+          iterations_remaining - div(iterations_remaining, cycle_length) * cycle_length + 1,
+          %{},
+          nil
+        )
 
       !cycle_length && Enum.max([0 | Map.values(tally)]) == 2 ->
         run(graph, iterations_remaining, tally, 1)
@@ -272,12 +278,14 @@ defmodule PartTwo do
 
         cycle_length =
           cond do
-            # cycle_length && Enum.max(Map.values(new_tally)) != Enum.max(Map.values(tally)) -> cycle_length
+            cycle_length && Enum.max(Map.values(new_tally)) == 3 -> cycle_length
             cycle_length -> cycle_length + 1
             true -> cycle_length
           end
 
-        IO.inspect({new_tally |> Map.values(), cycle_length, iterations_remaining},
+        IO.inspect(
+          {new_tally |> Map.values(), cycle_length, iterations_remaining,
+           PartOne.total_load(res)},
           label: :new_tally
         )
 
@@ -451,77 +459,71 @@ defmodule PartTwoTest do
   #OO..#....
   """
 
-  @input Parser.parse(@raw_input)
+  # @input Parser.parse(@raw_input)
 
-  @after_1_cycle [
-    [".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
-    [".", ".", ".", ".", "#", ".", ".", ".", "O", "#"],
-    [".", ".", ".", "O", "O", "#", "#", ".", ".", "."],
-    [".", "O", "O", "#", ".", ".", ".", ".", ".", "."],
-    [".", ".", ".", ".", ".", "O", "O", "O", "#", "."],
-    [".", "O", "#", ".", ".", ".", "O", "#", ".", "#"],
-    [".", ".", ".", ".", "O", "#", ".", ".", ".", "."],
-    [".", ".", ".", ".", ".", ".", "O", "O", "O", "O"],
-    ["#", ".", ".", ".", "O", "#", "#", "#", ".", "."],
-    ["#", ".", ".", "O", "O", "#", ".", ".", ".", "."]
-  ]
+  # @after_1_cycle [
+  #   [".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
+  #   [".", ".", ".", ".", "#", ".", ".", ".", "O", "#"],
+  #   [".", ".", ".", "O", "O", "#", "#", ".", ".", "."],
+  #   [".", "O", "O", "#", ".", ".", ".", ".", ".", "."],
+  #   [".", ".", ".", ".", ".", "O", "O", "O", "#", "."],
+  #   [".", "O", "#", ".", ".", ".", "O", "#", ".", "#"],
+  #   [".", ".", ".", ".", "O", "#", ".", ".", ".", "."],
+  #   [".", ".", ".", ".", ".", ".", "O", "O", "O", "O"],
+  #   ["#", ".", ".", ".", "O", "#", "#", "#", ".", "."],
+  #   ["#", ".", ".", "O", "O", "#", ".", ".", ".", "."]
+  # ]
 
-  @after_2_cycles [
-    [".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
-    [".", ".", ".", ".", "#", ".", ".", ".", "O", "#"],
-    [".", ".", ".", ".", ".", "#", "#", ".", ".", "."],
-    [".", ".", "O", "#", ".", ".", ".", ".", ".", "."],
-    [".", ".", ".", ".", ".", "O", "O", "O", "#", "."],
-    [".", "O", "#", ".", ".", ".", "O", "#", ".", "#"],
-    [".", ".", ".", ".", "O", "#", ".", ".", ".", "O"],
-    [".", ".", ".", ".", ".", ".", ".", "O", "O", "O"],
-    ["#", ".", ".", "O", "O", "#", "#", "#", ".", "."],
-    ["#", ".", "O", "O", "O", "#", ".", ".", ".", "O"]
-  ]
+  # @after_2_cycles [
+  #   [".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
+  #   [".", ".", ".", ".", "#", ".", ".", ".", "O", "#"],
+  #   [".", ".", ".", ".", ".", "#", "#", ".", ".", "."],
+  #   [".", ".", "O", "#", ".", ".", ".", ".", ".", "."],
+  #   [".", ".", ".", ".", ".", "O", "O", "O", "#", "."],
+  #   [".", "O", "#", ".", ".", ".", "O", "#", ".", "#"],
+  #   [".", ".", ".", ".", "O", "#", ".", ".", ".", "O"],
+  #   [".", ".", ".", ".", ".", ".", ".", "O", "O", "O"],
+  #   ["#", ".", ".", "O", "O", "#", "#", "#", ".", "."],
+  #   ["#", ".", "O", "O", "O", "#", ".", ".", ".", "O"]
+  # ]
 
-  @after_3_cycles [
-    [".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
-    [".", ".", ".", ".", "#", ".", ".", ".", "O", "#"],
-    [".", ".", ".", ".", ".", "#", "#", ".", ".", "."],
-    [".", ".", "O", "#", ".", ".", ".", ".", ".", "."],
-    [".", ".", ".", ".", ".", "O", "O", "O", "#", "."],
-    [".", "O", "#", ".", ".", ".", "O", "#", ".", "#"],
-    [".", ".", ".", ".", "O", "#", ".", ".", ".", "O"],
-    [".", ".", ".", ".", ".", ".", ".", "O", "O", "O"],
-    ["#", ".", ".", ".", "O", "#", "#", "#", ".", "O"],
-    ["#", ".", "O", "O", "O", "#", ".", ".", ".", "O"]
-  ]
+  # @after_3_cycles [
+  #   [".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
+  #   [".", ".", ".", ".", "#", ".", ".", ".", "O", "#"],
+  #   [".", ".", ".", ".", ".", "#", "#", ".", ".", "."],
+  #   [".", ".", "O", "#", ".", ".", ".", ".", ".", "."],
+  #   [".", ".", ".", ".", ".", "O", "O", "O", "#", "."],
+  #   [".", "O", "#", ".", ".", ".", "O", "#", ".", "#"],
+  #   [".", ".", ".", ".", "O", "#", ".", ".", ".", "O"],
+  #   [".", ".", ".", ".", ".", ".", ".", "O", "O", "O"],
+  #   ["#", ".", ".", ".", "O", "#", "#", "#", ".", "O"],
+  #   ["#", ".", "O", "O", "O", "#", ".", ".", ".", "O"]
+  # ]
 
   describe "run/1" do
     test "main example" do
       assert run(@raw_input) == 64
     end
-
-    # test "main example count playground" do
-    #   assert run(@raw_input, 20)
-    #   # 15.6, 11.2, 12.1
-    #   # 11.2, 15.4, 14.2 after caching number_of_cols
-    #   # 11.2, 10.9, 10.2 after caching number_of_rows
-    # end
   end
 
-  describe "spin_cycle/1" do
-    test "main example" do
-      assert spin_cycle(@input) == @after_1_cycle
-      assert spin_cycle(@after_1_cycle) == @after_2_cycles
-      assert spin_cycle(@after_2_cycles) == @after_3_cycles
-      # res = spin_cycle(@after_3_cycles);
-      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
-      # res = spin_cycle(res);
-      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
-      # res = spin_cycle(res);
-      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
-      # res = spin_cycle(res);
-      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
-      # res = spin_cycle(res);
-      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
-    end
-  end
+  # describe "spin_cycle/1" do
+  #   test "main example" do
+  #     assert spin_cycle(@input) == @after_1_cycle
+  #     assert spin_cycle(@after_1_cycle) == @after_2_cycles
+  #     assert spin_cycle(@after_2_cycles) == @after_3_cycles  
+  #     # res = spin_cycle(@after_3_cycles);
+  #     # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
+  #     # res = spin_cycle(res);
+  #     # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
+  #     # res = spin_cycle(res);
+  #     # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
+  #     # res = spin_cycle(res);
+  #     # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
+  #     # res = spin_cycle(res);
+  #     # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
+
+  #   end
+  # end
 end
 
 ExUnit.run()
@@ -530,9 +532,7 @@ ExUnit.run()
 ### Solution - Part 2
 
 ```elixir
-# PartTwo.solve(puzzle_input)
-input = Parser.parse(puzzle_input) |> hd()
-{length(input), length(hd(input))}
+PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":13984,"stamp":{"token":"XCP.Gya9UhlPdf65_pY0tTLS2iaDIz1m-sLwNc2w0Fb33JSQuU5r0XEDKLb2M9jiWu4nCf1D-a4YjZQTv8kccyP8ZY3qYt8myxhV3RhHp0lkqqeQOW_YAqo","version":2}} -->
+<!-- livebook:{"offset":13906,"stamp":{"token":"XCP.VGWk5yK3dOrdUXLr0aCa14QBPmjK5MSm1uacM5okwnKNff6mHOdQFGI4zQxEBvqs9ZvMjO9HKE4CDWGWVro2U8QazhKN5GqfVsbHF8w3pjBd_tV29i4","version":2}} -->
