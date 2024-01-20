@@ -26,11 +26,8 @@ Mix.install([
 ```elixir
 defmodule Parser do
   def parse(input) do
-    String.split(input, "\n\n", trim: true)
-    |> Enum.map(fn pattern ->
-      String.split(pattern, "\n", trim: true)
-      |> Enum.map(fn row -> String.split(row, "", trim: true) end)
-    end)
+    String.split(input, "\n", trim: true)
+    |> Enum.map(fn row -> String.split(row, "", trim: true) end)
   end
 end
 ```
@@ -55,38 +52,19 @@ defmodule ParserTest do
   .......O..
   #....###..
   #OO..#....
-
-  #...##..#
-  #....#..#
-  ..##..###
-  #####.##.
-  #####.##.
-  ..##..###
-  #....#..#
   """
 
   @expected [
-    [
-      ["O", ".", ".", ".", ".", "#", ".", ".", ".", "."],
-      ["O", ".", "O", "O", "#", ".", ".", ".", ".", "#"],
-      [".", ".", ".", ".", ".", "#", "#", ".", ".", "."],
-      ["O", "O", ".", "#", "O", ".", ".", ".", ".", "O"],
-      [".", "O", ".", ".", ".", ".", ".", "O", "#", "."],
-      ["O", ".", "#", ".", ".", "O", ".", "#", ".", "#"],
-      [".", ".", "O", ".", ".", "#", "O", ".", ".", "O"],
-      [".", ".", ".", ".", ".", ".", ".", "O", ".", "."],
-      ["#", ".", ".", ".", ".", "#", "#", "#", ".", "."],
-      ["#", "O", "O", ".", ".", "#", ".", ".", ".", "."]
-    ],
-    [
-      ["#", ".", ".", ".", "#", "#", ".", ".", "#"],
-      ["#", ".", ".", ".", ".", "#", ".", ".", "#"],
-      [".", ".", "#", "#", ".", ".", "#", "#", "#"],
-      ["#", "#", "#", "#", "#", ".", "#", "#", "."],
-      ["#", "#", "#", "#", "#", ".", "#", "#", "."],
-      [".", ".", "#", "#", ".", ".", "#", "#", "#"],
-      ["#", ".", ".", ".", ".", "#", ".", ".", "#"]
-    ]
+    ["O", ".", ".", ".", ".", "#", ".", ".", ".", "."],
+    ["O", ".", "O", "O", "#", ".", ".", ".", ".", "#"],
+    [".", ".", ".", ".", ".", "#", "#", ".", ".", "."],
+    ["O", "O", ".", "#", "O", ".", ".", ".", ".", "O"],
+    [".", "O", ".", ".", ".", ".", ".", "O", "#", "."],
+    ["O", ".", "#", ".", ".", "O", ".", "#", ".", "#"],
+    [".", ".", "O", ".", ".", "#", "O", ".", ".", "O"],
+    [".", ".", ".", ".", ".", ".", ".", "O", ".", "."],
+    ["#", ".", ".", ".", ".", "#", "#", "#", ".", "."],
+    ["#", "O", "O", ".", ".", "#", ".", ".", ".", "."]
   ]
 
   describe "parse/1" do
@@ -114,10 +92,8 @@ defmodule PartOne do
 
   def run(input_string) when is_bitstring(input_string), do: run(Parser.parse(input_string))
 
-  def run(inputs) do
-    inputs
-    |> Enum.map(fn input -> total_load(tilt_north(input)) end)
-    |> Enum.sum()
+  def run(input) do
+    total_load(tilt_north(input))
   end
 
   def tilt_north(input) do
@@ -203,7 +179,7 @@ defmodule PartOneTest do
   #OO..#....
   """
 
-  @input Parser.parse(@raw_input) |> hd()
+  @input Parser.parse(@raw_input)
 
   @expected_tilt [
     ["O", "O", "O", "O", ".", "#", ".", "O", ".", "."],
@@ -259,23 +235,54 @@ defmodule PartTwo do
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(graphs), do: run(graphs, 1_000_000_000)
+  def run(graph), do: run(graph, 1_000_000_000)
 
-  def run(graphs_string, cycles) when is_bitstring(graphs_string),
-    do: run(Parser.parse(graphs_string), cycles)
+  def run(graph_string, iterations) when is_bitstring(graph_string),
+    do: run(Parser.parse(graph_string), iterations)
 
-  def run(graphs, cycles) do
-    graphs
-    |> Enum.map(fn graph ->
-      Enum.reduce(1..cycles, graph, fn cycle_iteration, graph ->
-        if rem(cycle_iteration, 10_000) == 0, do: IO.inspect(cycle_iteration)
-        res = spin_cycle(graph)
-        if res == graph, do: IO.puts("same result at count #{cycle_iteration}")
-        res
-      end)
-      |> PartOne.total_load()
-    end)
-    |> Enum.sum()
+  def run(graph, iterations) do
+    # Enum.reduce(iterations..1, {graph, %{}, nil}, fn iteration, {graph, tally, cycle_length} -> 
+    {res, tally, _} =
+      run(graph, iterations, %{}, nil)
+
+    # end)
+    # IO.inspect(tally |> Map.values(), label: :counts)
+
+    res
+    |> PartOne.total_load()
+  end
+
+  def run(graph, iterations_remaining, tally, cycle_length) do
+    if iterations_remaining <= 1 do
+      {graph, tally, cycle_length}
+    else
+      if rem(iterations_remaining, 10_000) == 0, do: IO.inspect(iterations_remaining)
+      res = spin_cycle(graph)
+      if res == graph, do: IO.puts("same result at count #{iterations_remaining}")
+      new_tally = Map.update(tally, res, 1, fn count -> count + 1 end)
+      # if Map.length(new_tally)
+
+      cycle_length =
+        cond do
+          !cycle_length && Enum.count(new_tally) == Enum.count(tally) ->
+            1
+
+          cycle_length && Enum.max(Map.values(new_tally)) != Enum.max(Map.values(tally)) ->
+            cycle_length
+
+          cycle_length ->
+            cycle_length + 1
+
+          true ->
+            cycle_length
+        end
+
+      # IO.inspect({new_tally |> Map.values, cycle_length}, label: :new_tally)
+
+      # if cycle_length && max(Map.values(new_tally))
+
+      run(res, iterations_remaining - 1, new_tally, cycle_length)
+    end
   end
 
   def spin_cycle(graph) do
@@ -444,7 +451,7 @@ defmodule PartTwoTest do
   #OO..#....
   """
 
-  @input Parser.parse(@raw_input) |> hd()
+  @input Parser.parse(@raw_input)
 
   @after_1_cycle [
     [".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
@@ -491,7 +498,7 @@ defmodule PartTwoTest do
     # end
 
     test "main example" do
-      assert run(@raw_input, 100_000)
+      assert run(@raw_input, 20)
       # 15.6, 11.2, 12.1
       # 11.2, 15.4, 14.2 after caching number_of_cols
       # 11.2, 10.9, 10.2 after caching number_of_rows
@@ -528,4 +535,4 @@ input = Parser.parse(puzzle_input) |> hd()
 {length(input), length(hd(input))}
 ```
 
-<!-- livebook:{"offset":13660,"stamp":{"token":"XCP.r6WdvRq8uJPBCUoDts3pRqwZinAqipD_rDjvkgXsH2sDZNGvyaSzMWJOpwSdOF2MaB5DmtP9YcJYxRyosukIFCaVKPX2lz1T4r9FfpePiLVWxI5VNoM","version":2}} -->
+<!-- livebook:{"offset":13906,"stamp":{"token":"XCP.wxQs3RJYwpZ3hQhC4AeT8U0RtSJxMwR0t2RiSc-rslo9A-qC7z_JV7-g8RBCJo0W7mkIH-mfrYF0HAwbIo0spwd5K7yYZUDK0mEyJZTJKldxSBMLhHU","version":2}} -->
