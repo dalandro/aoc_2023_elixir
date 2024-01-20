@@ -277,13 +277,16 @@ defmodule PartTwo do
   end
 
   def spin_cycle(input) do
-    # |> tilt_south() |> tilt_east()
-    input |> tilt_north() |> tilt_west() |> tilt_south() |> tilt_east()
+    input
+    |> tilt_north()
+    |> tilt_west()
+    |> tilt_south()
+    |> tilt_east()
   end
 
   def tilt_north(input) do
     Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
-      Enum.reduce(0..((output |> hd() |> length()) - 1), output, fn col_i, output ->
+      Enum.reduce(0..(number_of_cols(input) - 1), output, fn col_i, output ->
         roll_piece_north(output, row_i, col_i)
       end)
     end)
@@ -308,7 +311,7 @@ defmodule PartTwo do
 
   defp tilt_west(input) do
     Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
-      Enum.reduce(0..((output |> hd() |> length()) - 1), output, fn col_i, output ->
+      Enum.reduce(0..(number_of_cols(input) - 1), output, fn col_i, output ->
         roll_piece_west(output, row_i, col_i)
       end)
     end)
@@ -333,7 +336,7 @@ defmodule PartTwo do
 
   defp tilt_south(input) do
     Enum.reduce((length(input) - 1)..0, input, fn row_i, output ->
-      Enum.reduce(0..((output |> hd() |> length()) - 1), output, fn col_i, output ->
+      Enum.reduce(0..(number_of_cols(input) - 1), output, fn col_i, output ->
         roll_piece_south(output, row_i, col_i)
       end)
     end)
@@ -358,7 +361,7 @@ defmodule PartTwo do
 
   defp tilt_east(input) do
     Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
-      Enum.reduce(((output |> hd() |> length()) - 1)..0, output, fn col_i, output ->
+      Enum.reduce((number_of_cols(input) - 1)..0, output, fn col_i, output ->
         roll_piece_east(output, row_i, col_i)
       end)
     end)
@@ -393,6 +396,16 @@ defmodule PartTwo do
 
   defp piece_at(input, row_idx, col_idx) do
     input |> Enum.at(row_idx) |> Enum.at(col_idx)
+  end
+
+  defp number_of_cols(input) do
+    if value = Process.get(:number_of_cols) do
+      value
+    else
+      value = input |> hd() |> length()
+      Process.put(:number_of_cols, value)
+      value
+    end
   end
 end
 ```
@@ -481,6 +494,7 @@ defmodule PartTwoTest do
     test "main example" do
       assert run(@raw_input, 100_000)
       # 15.6, 11.2, 12.1
+      # 11.2, 15.4, 14.2 after caching number_of_cols
     end
   end
 
@@ -504,4 +518,4 @@ input = Parser.parse(puzzle_input) |> hd()
 {length(input), length(hd(input))}
 ```
 
-<!-- livebook:{"offset":13094,"stamp":{"token":"XCP.D_2PKp2nC1FZumiSZpHx9-rWDtBkE1FrYusiGsIkxYERYRuuLU2E4QKlrK4Y3zVYH9rHl3g_NRVD4fLsWxF4ki5gbNOfUgYkcT66sgfFUGjA3c_kd9I","version":2}} -->
+<!-- livebook:{"offset":13308,"stamp":{"token":"XCP.U0Wqr8XUJmzOEk53SyuhpfeuBqIA5XryRoCpelpFAhBNZMS2MdjVMXnWwqAVUsJjutiZPX3HfyKKMxp1RQyz4ovps4LXQBma0SjrSSNZP9-hMJ3SMfA","version":2}} -->
