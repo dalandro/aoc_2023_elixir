@@ -259,133 +259,135 @@ defmodule PartTwo do
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(inputs), do: run(inputs, 1_000_000_000)
+  def run(graphs), do: run(graphs, 1_000_000_000)
 
-  def run(input_string, cycles) when is_bitstring(input_string),
-    do: run(Parser.parse(input_string), cycles)
+  def run(graphs_string, cycles) when is_bitstring(graphs_string),
+    do: run(Parser.parse(graphs_string), cycles)
 
-  def run(inputs, cycles) do
-    inputs
-    |> Enum.map(fn input ->
-      Enum.reduce(1..cycles, input, fn cycle_iteration, output ->
+  def run(graphs, cycles) do
+    graphs
+    |> Enum.map(fn graph ->
+      Enum.reduce(1..cycles, graph, fn cycle_iteration, graph ->
         if rem(cycle_iteration, 10_000) == 0, do: IO.inspect(cycle_iteration)
-        spin_cycle(output)
+        res = spin_cycle(graph)
+        if res == graph, do: IO.puts("same result at count #{cycle_iteration}")
+        res
       end)
       |> PartOne.total_load()
     end)
     |> Enum.sum()
   end
 
-  def spin_cycle(input) do
-    input
+  def spin_cycle(graph) do
+    graph
     |> tilt_north()
     |> tilt_west()
     |> tilt_south()
     |> tilt_east()
   end
 
-  def tilt_north(input) do
-    Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
-      Enum.reduce(0..(number_of_cols(input) - 1), output, fn col_i, output ->
-        roll_piece_north(output, row_i, col_i)
+  def tilt_north(graph) do
+    Enum.reduce(0..(number_of_rows(graph) - 1), graph, fn row_i, graph ->
+      Enum.reduce(0..(number_of_cols(graph) - 1), graph, fn col_i, graph ->
+        roll_piece_north(graph, row_i, col_i)
       end)
     end)
   end
 
-  defp roll_piece_north(input, row_idx, col_idx) do
-    if piece_at(input, row_idx, col_idx) != "O" do
-      input
+  defp roll_piece_north(graph, row_idx, col_idx) do
+    if piece_at(graph, row_idx, col_idx) != "O" do
+      graph
     else
       start_point = {row_idx, col_idx}
 
       end_point = {
         Enum.find(row_idx..0, fn i ->
-          i == 0 || piece_at(input, i - 1, col_idx) != "."
+          i == 0 || piece_at(graph, i - 1, col_idx) != "."
         end),
         col_idx
       }
 
-      move_piece(input, start_point, end_point)
+      move_piece(graph, start_point, end_point)
     end
   end
 
-  defp tilt_west(input) do
-    Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
-      Enum.reduce(0..(number_of_cols(input) - 1), output, fn col_i, output ->
-        roll_piece_west(output, row_i, col_i)
+  defp tilt_west(graph) do
+    Enum.reduce(0..(number_of_rows(graph) - 1), graph, fn row_i, graph ->
+      Enum.reduce(0..(number_of_cols(graph) - 1), graph, fn col_i, graph ->
+        roll_piece_west(graph, row_i, col_i)
       end)
     end)
   end
 
-  defp roll_piece_west(input, row_idx, col_idx) do
-    if piece_at(input, row_idx, col_idx) != "O" do
-      input
+  defp roll_piece_west(graph, row_idx, col_idx) do
+    if piece_at(graph, row_idx, col_idx) != "O" do
+      graph
     else
       start_point = {row_idx, col_idx}
 
       end_point = {
         row_idx,
         Enum.find(col_idx..0, fn i ->
-          i == 0 || piece_at(input, row_idx, i - 1) != "."
+          i == 0 || piece_at(graph, row_idx, i - 1) != "."
         end)
       }
 
-      move_piece(input, start_point, end_point)
+      move_piece(graph, start_point, end_point)
     end
   end
 
-  defp tilt_south(input) do
-    Enum.reduce((length(input) - 1)..0, input, fn row_i, output ->
-      Enum.reduce(0..(number_of_cols(input) - 1), output, fn col_i, output ->
-        roll_piece_south(output, row_i, col_i)
+  defp tilt_south(graph) do
+    Enum.reduce((number_of_rows(graph) - 1)..0, graph, fn row_i, graph ->
+      Enum.reduce(0..(number_of_cols(graph) - 1), graph, fn col_i, graph ->
+        roll_piece_south(graph, row_i, col_i)
       end)
     end)
   end
 
-  defp roll_piece_south(input, row_idx, col_idx) do
-    if piece_at(input, row_idx, col_idx) != "O" do
-      input
+  defp roll_piece_south(graph, row_idx, col_idx) do
+    if piece_at(graph, row_idx, col_idx) != "O" do
+      graph
     else
       start_point = {row_idx, col_idx}
 
       end_point = {
-        Enum.find(row_idx..(length(input) - 1), fn i ->
-          i == length(input) - 1 || piece_at(input, i + 1, col_idx) != "."
+        Enum.find(row_idx..(number_of_rows(graph) - 1), fn i ->
+          i == number_of_rows(graph) - 1 || piece_at(graph, i + 1, col_idx) != "."
         end),
         col_idx
       }
 
-      move_piece(input, start_point, end_point)
+      move_piece(graph, start_point, end_point)
     end
   end
 
-  defp tilt_east(input) do
-    Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
-      Enum.reduce((number_of_cols(input) - 1)..0, output, fn col_i, output ->
-        roll_piece_east(output, row_i, col_i)
+  defp tilt_east(graph) do
+    Enum.reduce(0..(number_of_rows(graph) - 1), graph, fn row_i, graph ->
+      Enum.reduce((number_of_cols(graph) - 1)..0, graph, fn col_i, graph ->
+        roll_piece_east(graph, row_i, col_i)
       end)
     end)
   end
 
-  defp roll_piece_east(input, row_idx, col_idx) do
-    if piece_at(input, row_idx, col_idx) != "O" do
-      input
+  defp roll_piece_east(graph, row_idx, col_idx) do
+    if piece_at(graph, row_idx, col_idx) != "O" do
+      graph
     else
       start_point = {row_idx, col_idx}
 
       end_point = {
         row_idx,
-        Enum.find(col_idx..(length(hd(input)) - 1), fn i ->
-          i == length(hd(input)) || piece_at(input, row_idx, i + 1) != "."
+        Enum.find(col_idx..(number_of_cols(graph) - 1), fn i ->
+          i == number_of_cols(graph) || piece_at(graph, row_idx, i + 1) != "."
         end)
       }
 
-      move_piece(input, start_point, end_point)
+      move_piece(graph, start_point, end_point)
     end
   end
 
-  defp move_piece(input, {start_row_idx, start_col_idx}, {end_row_idx, end_col_idx}) do
-    input
+  defp move_piece(graph, {start_row_idx, start_col_idx}, {end_row_idx, end_col_idx}) do
+    graph
     |> List.update_at(start_row_idx, fn row ->
       List.update_at(row, start_col_idx, fn "O" -> "." end)
     end)
@@ -394,16 +396,26 @@ defmodule PartTwo do
     end)
   end
 
-  defp piece_at(input, row_idx, col_idx) do
-    input |> Enum.at(row_idx) |> Enum.at(col_idx)
+  defp piece_at(graph, row_idx, col_idx) do
+    graph |> Enum.at(row_idx) |> Enum.at(col_idx)
   end
 
-  defp number_of_cols(input) do
+  defp number_of_cols(graph) do
     if value = Process.get(:number_of_cols) do
       value
     else
-      value = input |> hd() |> length()
+      value = graph |> hd() |> length()
       Process.put(:number_of_cols, value)
+      value
+    end
+  end
+
+  defp number_of_rows(graph) do
+    if value = Process.get(:number_of_rows) do
+      value
+    else
+      value = graph |> length()
+      Process.put(:number_of_rows, value)
       value
     end
   end
@@ -433,19 +445,6 @@ defmodule PartTwoTest do
   """
 
   @input Parser.parse(@raw_input) |> hd()
-
-  @expected_north_tilt [
-    ["O", "O", "O", "O", ".", "#", ".", "O", ".", "."],
-    ["O", "O", ".", ".", "#", ".", ".", ".", ".", "#"],
-    ["O", "O", ".", ".", "O", "#", "#", ".", ".", "O"],
-    ["O", ".", ".", "#", ".", "O", "O", ".", ".", "."],
-    [".", ".", ".", ".", ".", ".", ".", ".", "#", "."],
-    [".", ".", "#", ".", ".", ".", ".", "#", ".", "#"],
-    [".", ".", "O", ".", ".", "#", ".", "O", ".", "O"],
-    [".", ".", "O", ".", ".", ".", ".", ".", ".", "."],
-    ["#", ".", ".", ".", ".", "#", "#", "#", ".", "."],
-    ["#", ".", ".", ".", ".", "#", ".", ".", ".", "."]
-  ]
 
   @after_1_cycle [
     [".", ".", ".", ".", ".", "#", ".", ".", ".", "."],
@@ -495,6 +494,7 @@ defmodule PartTwoTest do
       assert run(@raw_input, 100_000)
       # 15.6, 11.2, 12.1
       # 11.2, 15.4, 14.2 after caching number_of_cols
+      # 11.2, 10.9, 10.2 after caching number_of_rows
     end
   end
 
@@ -503,6 +503,16 @@ defmodule PartTwoTest do
       assert spin_cycle(@input) == @after_1_cycle
       assert spin_cycle(@after_1_cycle) == @after_2_cycles
       assert spin_cycle(@after_2_cycles) == @after_3_cycles
+      # res = spin_cycle(@after_3_cycles);
+      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
+      # res = spin_cycle(res);
+      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
+      # res = spin_cycle(res);
+      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
+      # res = spin_cycle(res);
+      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
+      # res = spin_cycle(res);
+      # # Enum.map(res, fn row -> IO.puts(Enum.join(row)) end); IO.puts("")
     end
   end
 end
@@ -518,4 +528,4 @@ input = Parser.parse(puzzle_input) |> hd()
 {length(input), length(hd(input))}
 ```
 
-<!-- livebook:{"offset":13308,"stamp":{"token":"XCP.U0Wqr8XUJmzOEk53SyuhpfeuBqIA5XryRoCpelpFAhBNZMS2MdjVMXnWwqAVUsJjutiZPX3HfyKKMxp1RQyz4ovps4LXQBma0SjrSSNZP9-hMJ3SMfA","version":2}} -->
+<!-- livebook:{"offset":13660,"stamp":{"token":"XCP.r6WdvRq8uJPBCUoDts3pRqwZinAqipD_rDjvkgXsH2sDZNGvyaSzMWJOpwSdOF2MaB5DmtP9YcJYxRyosukIFCaVKPX2lz1T4r9FfpePiLVWxI5VNoM","version":2}} -->
