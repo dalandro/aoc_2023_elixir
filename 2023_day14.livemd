@@ -254,8 +254,6 @@ PartOne.solve(puzzle_input)
 
 ```elixir
 defmodule PartTwo do
-  require Integer, [:is_odd, :is_even]
-
   def solve(input) do
     IO.puts("--- Part Two ---")
     IO.puts("Result: #{run(input)}")
@@ -280,22 +278,44 @@ defmodule PartTwo do
 
   def spin_cycle(input) do
     # |> tilt_south() |> tilt_east()
-    input |> PartOne.tilt_north() |> tilt_west() |> tilt_south() |> tilt_east()
+    input |> tilt_north() |> tilt_west() |> tilt_south() |> tilt_east()
+  end
+
+  def tilt_north(input) do
+    Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
+      Enum.reduce(0..((output |> hd() |> length()) - 1), output, fn col_i, output ->
+        roll_piece_north(output, row_i, col_i)
+      end)
+    end)
+  end
+
+  defp roll_piece_north(input, row_idx, col_idx) do
+    if piece_at(input, row_idx, col_idx) != "O" do
+      input
+    else
+      start_point = {row_idx, col_idx}
+
+      end_point = {
+        Enum.find(row_idx..0, fn i ->
+          i == 0 || piece_at(input, i - 1, col_idx) != "."
+        end),
+        col_idx
+      }
+
+      move_piece(input, start_point, end_point)
+    end
   end
 
   defp tilt_west(input) do
-    # IO.inspect(0..(length(input) - 1), label: :row_range)
-    # IO.inspect(0..((input |> hd() |> length()) - 1), label: :col_range)
     Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
       Enum.reduce(0..((output |> hd() |> length()) - 1), output, fn col_i, output ->
-        # IO.inspect({row_i, col_i}, label: :coord)
         roll_piece_west(output, row_i, col_i)
       end)
     end)
   end
 
   defp roll_piece_west(input, row_idx, col_idx) do
-    if PartOne.piece_at(input, row_idx, col_idx) != "O" do
+    if piece_at(input, row_idx, col_idx) != "O" do
       input
     else
       start_point = {row_idx, col_idx}
@@ -303,59 +323,49 @@ defmodule PartTwo do
       end_point = {
         row_idx,
         Enum.find(col_idx..0, fn i ->
-          # IO.inspect({i, {i - 1, col_idx}, piece_at(input, i - 1, col_idx)}, label: :finding_coord_to_move_to)
-          i == 0 || PartOne.piece_at(input, row_idx, i - 1) != "."
+          i == 0 || piece_at(input, row_idx, i - 1) != "."
         end)
       }
 
-      # IO.inspect({input, start_point, end_point}, label: :input_to_move_piece)
-      PartOne.move_piece(input, start_point, end_point)
+      move_piece(input, start_point, end_point)
     end
   end
 
   defp tilt_south(input) do
-    # IO.inspect(0..(length(input) - 1), label: :row_range)
-    # IO.inspect(0..((input |> hd() |> length()) - 1), label: :col_range)
     Enum.reduce((length(input) - 1)..0, input, fn row_i, output ->
       Enum.reduce(0..((output |> hd() |> length()) - 1), output, fn col_i, output ->
-        # IO.inspect({row_i, col_i}, label: :coord)
         roll_piece_south(output, row_i, col_i)
       end)
     end)
   end
 
   defp roll_piece_south(input, row_idx, col_idx) do
-    if PartOne.piece_at(input, row_idx, col_idx) != "O" do
+    if piece_at(input, row_idx, col_idx) != "O" do
       input
     else
       start_point = {row_idx, col_idx}
 
       end_point = {
         Enum.find(row_idx..(length(input) - 1), fn i ->
-          # IO.inspect({i, {i - 1, col_idx}, piece_at(input, i - 1, col_idx)}, label: :finding_coord_to_move_to)
-          i == length(input) - 1 || PartOne.piece_at(input, i + 1, col_idx) != "."
+          i == length(input) - 1 || piece_at(input, i + 1, col_idx) != "."
         end),
         col_idx
       }
 
-      # IO.inspect({input, start_point, end_point}, label: :input_to_move_piece)
-      PartOne.move_piece(input, start_point, end_point)
+      move_piece(input, start_point, end_point)
     end
   end
 
   defp tilt_east(input) do
-    # IO.inspect(0..(length(input) - 1), label: :row_range)
-    # IO.inspect(0..((input |> hd() |> length()) - 1), label: :col_range)
     Enum.reduce(0..(length(input) - 1), input, fn row_i, output ->
       Enum.reduce(((output |> hd() |> length()) - 1)..0, output, fn col_i, output ->
-        # IO.inspect({row_i, col_i}, label: :coord)
         roll_piece_east(output, row_i, col_i)
       end)
     end)
   end
 
   defp roll_piece_east(input, row_idx, col_idx) do
-    if PartOne.piece_at(input, row_idx, col_idx) != "O" do
+    if piece_at(input, row_idx, col_idx) != "O" do
       input
     else
       start_point = {row_idx, col_idx}
@@ -363,14 +373,26 @@ defmodule PartTwo do
       end_point = {
         row_idx,
         Enum.find(col_idx..(length(hd(input)) - 1), fn i ->
-          # IO.inspect({i, {i - 1, col_idx}, piece_at(input, i - 1, col_idx)}, label: :finding_coord_to_move_to)
-          i == length(hd(input)) || PartOne.piece_at(input, row_idx, i + 1) != "."
+          i == length(hd(input)) || piece_at(input, row_idx, i + 1) != "."
         end)
       }
 
-      # IO.inspect({input, start_point, end_point}, label: :input_to_move_piece)
-      PartOne.move_piece(input, start_point, end_point)
+      move_piece(input, start_point, end_point)
     end
+  end
+
+  defp move_piece(input, {start_row_idx, start_col_idx}, {end_row_idx, end_col_idx}) do
+    input
+    |> List.update_at(start_row_idx, fn row ->
+      List.update_at(row, start_col_idx, fn "O" -> "." end)
+    end)
+    |> List.update_at(end_row_idx, fn row ->
+      List.update_at(row, end_col_idx, fn "." -> "O" end)
+    end)
+  end
+
+  defp piece_at(input, row_idx, col_idx) do
+    input |> Enum.at(row_idx) |> Enum.at(col_idx)
   end
 end
 ```
@@ -458,7 +480,7 @@ defmodule PartTwoTest do
 
     test "main example" do
       assert run(@raw_input, 100_000)
-      # 15.6 seconds
+      # 15.6, 11.2, 12.1
     end
   end
 
@@ -477,7 +499,9 @@ ExUnit.run()
 ### Solution - Part 2
 
 ```elixir
-PartTwo.solve(puzzle_input)
+# PartTwo.solve(puzzle_input)
+input = Parser.parse(puzzle_input) |> hd()
+{length(input), length(hd(input))}
 ```
 
-<!-- livebook:{"offset":13200,"stamp":{"token":"XCP.T0FbAbcwQVrHHwkmXZom6KwVrY9OJR1mapJAPWJ60MzW-mkMBdUIklV8SwimQH4Dw-YZwqaCFGoc-_HHG3p4oQR5D-JH36LQdGn4bz48MFx7OfshnNg","version":2}} -->
+<!-- livebook:{"offset":13094,"stamp":{"token":"XCP.D_2PKp2nC1FZumiSZpHx9-rWDtBkE1FrYusiGsIkxYERYRuuLU2E4QKlrK4Y3zVYH9rHl3g_NRVD4fLsWxF4ki5gbNOfUgYkcT66sgfFUGjA3c_kd9I","version":2}} -->
