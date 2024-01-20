@@ -241,24 +241,21 @@ defmodule PartTwo do
     do: run(Parser.parse(graph_string), iterations)
 
   def run(graph, iterations) do
-    {res, tally, _} = run(graph, iterations, %{}, nil)
-    IO.inspect(tally |> Map.values(), label: :counts)
-
-    res
+    run(graph, iterations, %{}, nil)
     |> PartOne.total_load()
   end
 
+  def run(graph, 1, _, _), do: graph
+
+  # def run(graph, iterations_remaining, tally, nil), when Enum.max([0 | Map.values(tally)]) == 2 do: run(graph, iterations_remaining, tally, 1)
   def run(graph, iterations_remaining, tally, cycle_length) do
-    IO.inspect(
-      {tally |> Map.values(), cycle_length, iterations_remaining, PartOne.total_load(graph)},
-      label: :tally_beginning
-    )
+    # IO.inspect({tally |> Map.values, cycle_length, iterations_remaining, PartOne.total_load(graph)}, label: :tally_beginning)
 
     cond do
-      iterations_remaining <= 1 ->
-        {graph, tally, cycle_length}
+      !cycle_length && 2 in Map.values(tally) && 3 not in Map.values(tally) ->
+        run(graph, iterations_remaining, tally, 1)
 
-      cycle_length && Enum.max([0 | Map.values(tally)]) == 3 ->
+      cycle_length && 3 in Map.values(tally) ->
         run(
           graph,
           iterations_remaining - div(iterations_remaining, cycle_length) * cycle_length + 1,
@@ -266,13 +263,8 @@ defmodule PartTwo do
           nil
         )
 
-      !cycle_length && Enum.max([0 | Map.values(tally)]) == 2 ->
-        run(graph, iterations_remaining, tally, 1)
-
       true ->
         res = spin_cycle(graph)
-
-        if res == graph, do: IO.puts("same result at count #{iterations_remaining}")
 
         new_tally = Map.update(tally, res, 1, fn count -> count + 1 end)
 
@@ -283,11 +275,7 @@ defmodule PartTwo do
             true -> cycle_length
           end
 
-        IO.inspect(
-          {new_tally |> Map.values(), cycle_length, iterations_remaining,
-           PartOne.total_load(res)},
-          label: :new_tally
-        )
+        # IO.inspect({new_tally |> Map.values, cycle_length, iterations_remaining, PartOne.total_load(res)}, label: :new_tally)
 
         run(res, iterations_remaining - 1, new_tally, cycle_length)
     end
@@ -535,4 +523,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":13906,"stamp":{"token":"XCP.VGWk5yK3dOrdUXLr0aCa14QBPmjK5MSm1uacM5okwnKNff6mHOdQFGI4zQxEBvqs9ZvMjO9HKE4CDWGWVro2U8QazhKN5GqfVsbHF8w3pjBd_tV29i4","version":2}} -->
+<!-- livebook:{"offset":13788,"stamp":{"token":"XCP.w_c-Wdbw1h5NFZ27aDTrXYBXTEhaz2aWzPdvbdj7Rv6RUebo0RoPdLTvnLx2qSHW-GpV7zglXMgi1VTbg7Vg8U7xoBHLKoV3ib2rjEOEGYkrVimo27k","version":2}} -->
