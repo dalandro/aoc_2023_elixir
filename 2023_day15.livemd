@@ -151,11 +151,10 @@ defmodule PartTwo do
 
   def run(inputs) do
     inputs
-    |> Enum.map(fn input ->
-      box_number = hash_alg(input)
-      box_number
+    |> Enum.reduce(%{}, fn input, boxes ->
+      input |> parse_step() |> perform_step_on_boxes(boxes)
     end)
-    |> Enum.sum()
+    |> focusing_power()
   end
 
   def hash_alg(input) do
@@ -177,14 +176,14 @@ defmodule PartTwo do
         end).()
   end
 
-  def perform_step_on_box(box, step) do
+  def perform_step_on_boxes(step, boxes) do
     box_number = hash_alg(step[:label])
 
     lens = %{label: step[:label], focal_length: step[:focal_length]}
 
     case step[:operation] do
       "-" ->
-        Map.update(box, box_number, [], fn contents ->
+        Map.update(boxes, box_number, [], fn contents ->
           if index = Enum.find_index(contents, fn content -> content[:label] == step[:label] end) do
             List.delete_at(contents, index)
           else
@@ -194,16 +193,27 @@ defmodule PartTwo do
         |> Map.reject(fn {_k, v} -> Enum.empty?(v) end)
 
       "=" ->
-        Map.update(box, box_number, [lens], fn contents ->
+        Map.update(boxes, box_number, [lens], fn contents ->
           if index = Enum.find_index(contents, fn content -> content[:label] == step[:label] end) do
             List.replace_at(contents, index, lens)
           else
             contents ++ [lens]
           end
         end)
-
-        # Map.update(box, box_number, [lens], fn _contents -> [lens] end)
     end
+  end
+
+  def focusing_power(boxes) do
+    boxes
+    |> Enum.map(fn {box_number, lenses} ->
+      lenses
+      |> Enum.with_index(1)
+      |> Enum.map(fn {%{label: _label, focal_length: focal_length}, slot_number} ->
+        (1 + box_number) * slot_number * focal_length
+      end)
+    end)
+    |> List.flatten()
+    |> Enum.sum()
   end
 end
 ```
@@ -226,7 +236,7 @@ defmodule PartTwoTest do
 
   describe "run/1" do
     test "main example" do
-      assert run(@raw_input) == 1320
+      assert run(@raw_input) == 145
     end
   end
 
@@ -262,43 +272,43 @@ defmodule PartTwoTest do
     end
   end
 
-  describe "perform_step_on_box/2" do
+  describe "perform_step_on_boxes/2" do
     test "main example" do
-      box = %{}
+      boxes = %{}
 
-      assert (box1 = perform_step_on_box(box, parse_step("rn=1"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("rn=1"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}]
              }
 
-      assert (box2 = perform_step_on_box(box1, parse_step("cm-"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("cm-"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}]
              }
 
-      assert (box3 = perform_step_on_box(box2, parse_step("qp=3"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("qp=3"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}],
                1 => [%{label: "qp", focal_length: 3}]
              }
 
-      assert (box4 = perform_step_on_box(box3, parse_step("cm=2"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("cm=2"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
                1 => [%{label: "qp", focal_length: 3}]
              }
 
-      assert (box5 = perform_step_on_box(box4, parse_step("qp-"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("qp-"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}]
              }
 
-      assert (box6 = perform_step_on_box(box5, parse_step("pc=4"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("pc=4"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
                3 => [%{label: "pc", focal_length: 4}]
              }
 
-      assert (box7 = perform_step_on_box(box6, parse_step("ot=9"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("ot=9"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
                3 => [%{label: "pc", focal_length: 4}, %{label: "ot", focal_length: 9}]
              }
 
-      assert (box8 = perform_step_on_box(box7, parse_step("ab=5"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("ab=5"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
                3 => [
                  %{label: "pc", focal_length: 4},
@@ -307,12 +317,12 @@ defmodule PartTwoTest do
                ]
              }
 
-      assert (box9 = perform_step_on_box(box8, parse_step("pc-"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("pc-"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
                3 => [%{label: "ot", focal_length: 9}, %{label: "ab", focal_length: 5}]
              }
 
-      assert (box10 = perform_step_on_box(box9, parse_step("pc=6"))) == %{
+      assert (boxes = perform_step_on_boxes(parse_step("pc=6"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
                3 => [
                  %{label: "ot", focal_length: 9},
@@ -321,7 +331,7 @@ defmodule PartTwoTest do
                ]
              }
 
-      assert (_box11 = perform_step_on_box(box10, parse_step("ot=7"))) == %{
+      assert (_boxes = perform_step_on_boxes(parse_step("ot=7"), boxes)) == %{
                0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
                3 => [
                  %{label: "ot", focal_length: 7},
@@ -332,8 +342,19 @@ defmodule PartTwoTest do
     end
   end
 
-  describe "focusing_power/1" do
+  describe "focusing_power/2" do
     test "main example" do
+      boxes = %{
+        0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
+        3 => [
+          %{label: "ot", focal_length: 7},
+          %{label: "ab", focal_length: 5},
+          %{label: "pc", focal_length: 6}
+        ]
+      }
+
+      assert focusing_power(boxes) == 145
+      assert focusing_power(boxes) == 1 + 4 + 28 + 40 + 72
     end
   end
 end
@@ -347,4 +368,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":9213,"stamp":{"token":"XCP.Vp0ilvGaT4QbuBJaYHA-fi1PbEJSXQRunvCL23MpeEQBDDvmHpngC3ptWjuIGCb14ClseQsG7q7txK3oMbl1sPu2JloPYfGzte-n1BSLQEiEzGoOJ-M","version":2}} -->
+<!-- livebook:{"offset":9911,"stamp":{"token":"XCP.P5yOkS35_Y1KqIRCCi6bTEUsB-oIETBar-ggpMpWkpTYsv8iw3WxU_SEg2k6pXTph9VEw0DoO4FF14EIJJEWWPyFzK9Fio2qkupEuYOmZ6DfZg6mpNk","version":2}} -->
