@@ -82,16 +82,7 @@ defmodule PartOne do
   def hash_alg(input) do
     input
     |> to_charlist()
-    |> Enum.reduce(0, fn char, res ->
-      # IO.inspect(char, label: :char)
-      addit = res + char
-      # IO.inspect(addit, label: :addit)
-      mult = addit * 17
-      # IO.inspect(mult, label: :mult_17)
-      remaind = rem(mult, 256)
-      # IO.inspect(remaind, label: :remaind_256)
-      remaind
-    end)
+    |> Enum.reduce(0, fn char, res -> rem((res + char) * 17, 256) end)
   end
 end
 ```
@@ -156,10 +147,63 @@ defmodule PartTwo do
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(graph_string, iterations) when is_bitstring(graph_string),
-    do: run(Parser.parse(graph_string), iterations)
+  def run(input_string) when is_bitstring(input_string), do: run(Parser.parse(input_string))
 
-  def run(graph, iterations) do
+  def run(inputs) do
+    inputs
+    |> Enum.map(fn input ->
+      box_number = hash_alg(input)
+      box_number
+    end)
+    |> Enum.sum()
+  end
+
+  def hash_alg(input) do
+    input
+    |> to_charlist()
+    |> Enum.reduce(0, fn char, res -> rem((res + char) * 17, 256) end)
+  end
+
+  def parse_step(input) do
+    String.split(input, ~r/[\=\-]/, trim: true, include_captures: true)
+    |> Enum.zip([:label, :operation, :focal_length])
+    |> Enum.into(%{}, fn {val, key} -> {key, val} end)
+    |> (fn hash ->
+          if Map.has_key?(hash, :focal_length) do
+            Map.update!(hash, :focal_length, fn val -> String.to_integer(val) end)
+          else
+            hash
+          end
+        end).()
+  end
+
+  def perform_step_on_box(box, step) do
+    box_number = hash_alg(step[:label])
+
+    lens = %{label: step[:label], focal_length: step[:focal_length]}
+
+    case step[:operation] do
+      "-" ->
+        Map.update(box, box_number, [], fn contents ->
+          if index = Enum.find_index(contents, fn content -> content[:label] == step[:label] end) do
+            List.delete_at(contents, index)
+          else
+            contents
+          end
+        end)
+        |> Map.reject(fn {_k, v} -> Enum.empty?(v) end)
+
+      "=" ->
+        Map.update(box, box_number, [lens], fn contents ->
+          if index = Enum.find_index(contents, fn content -> content[:label] == step[:label] end) do
+            List.replace_at(contents, index, lens)
+          else
+            contents ++ [lens]
+          end
+        end)
+
+        # Map.update(box, box_number, [lens], fn _contents -> [lens] end)
+    end
   end
 end
 ```
@@ -178,10 +222,118 @@ defmodule PartTwoTest do
   """
 
   @input Parser.parse(@raw_input)
+  @steps Enum.map(@input, fn step_string -> parse_step(step_string) end)
 
   describe "run/1" do
     test "main example" do
-      assert run(@raw_input) == 64
+      assert run(@raw_input) == 1320
+    end
+  end
+
+  describe "hash_alg/1" do
+    test "main examples" do
+      assert hash_alg("rn") == 0
+      assert hash_alg("cm") == 0
+      assert hash_alg("qp") == 1
+      assert hash_alg("cm") == 0
+      assert hash_alg("qp") == 1
+      assert hash_alg("pc") == 3
+      assert hash_alg("ot") == 3
+      assert hash_alg("ab") == 3
+      assert hash_alg("pc") == 3
+      assert hash_alg("pc") == 3
+      assert hash_alg("ot") == 3
+    end
+  end
+
+  describe "parse_step/1" do
+    test "main examples" do
+      assert parse_step("rn=1") == %{label: "rn", operation: "=", focal_length: 1}
+      assert parse_step("cm-") == %{label: "cm", operation: "-"}
+      assert parse_step("qp=3") == %{label: "qp", operation: "=", focal_length: 3}
+      assert parse_step("cm=2") == %{label: "cm", operation: "=", focal_length: 2}
+      assert parse_step("qp-") == %{label: "qp", operation: "-"}
+      assert parse_step("pc=4") == %{label: "pc", operation: "=", focal_length: 4}
+      assert parse_step("ot=9") == %{label: "ot", operation: "=", focal_length: 9}
+      assert parse_step("ab=5") == %{label: "ab", operation: "=", focal_length: 5}
+      assert parse_step("pc-") == %{label: "pc", operation: "-"}
+      assert parse_step("pc=6") == %{label: "pc", operation: "=", focal_length: 6}
+      assert parse_step("ot=7") == %{label: "ot", operation: "=", focal_length: 7}
+    end
+  end
+
+  describe "perform_step_on_box/2" do
+    test "main example" do
+      box = %{}
+
+      assert (box1 = perform_step_on_box(box, parse_step("rn=1"))) == %{
+               0 => [%{label: "rn", focal_length: 1}]
+             }
+
+      assert (box2 = perform_step_on_box(box1, parse_step("cm-"))) == %{
+               0 => [%{label: "rn", focal_length: 1}]
+             }
+
+      assert (box3 = perform_step_on_box(box2, parse_step("qp=3"))) == %{
+               0 => [%{label: "rn", focal_length: 1}],
+               1 => [%{label: "qp", focal_length: 3}]
+             }
+
+      assert (box4 = perform_step_on_box(box3, parse_step("cm=2"))) == %{
+               0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
+               1 => [%{label: "qp", focal_length: 3}]
+             }
+
+      assert (box5 = perform_step_on_box(box4, parse_step("qp-"))) == %{
+               0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}]
+             }
+
+      assert (box6 = perform_step_on_box(box5, parse_step("pc=4"))) == %{
+               0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
+               3 => [%{label: "pc", focal_length: 4}]
+             }
+
+      assert (box7 = perform_step_on_box(box6, parse_step("ot=9"))) == %{
+               0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
+               3 => [%{label: "pc", focal_length: 4}, %{label: "ot", focal_length: 9}]
+             }
+
+      assert (box8 = perform_step_on_box(box7, parse_step("ab=5"))) == %{
+               0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
+               3 => [
+                 %{label: "pc", focal_length: 4},
+                 %{label: "ot", focal_length: 9},
+                 %{label: "ab", focal_length: 5}
+               ]
+             }
+
+      assert (box9 = perform_step_on_box(box8, parse_step("pc-"))) == %{
+               0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
+               3 => [%{label: "ot", focal_length: 9}, %{label: "ab", focal_length: 5}]
+             }
+
+      assert (box10 = perform_step_on_box(box9, parse_step("pc=6"))) == %{
+               0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
+               3 => [
+                 %{label: "ot", focal_length: 9},
+                 %{label: "ab", focal_length: 5},
+                 %{label: "pc", focal_length: 6}
+               ]
+             }
+
+      assert (_box11 = perform_step_on_box(box10, parse_step("ot=7"))) == %{
+               0 => [%{label: "rn", focal_length: 1}, %{label: "cm", focal_length: 2}],
+               3 => [
+                 %{label: "ot", focal_length: 7},
+                 %{label: "ab", focal_length: 5},
+                 %{label: "pc", focal_length: 6}
+               ]
+             }
+    end
+  end
+
+  describe "focusing_power/1" do
+    test "main example" do
     end
   end
 end
@@ -195,4 +347,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":3547,"stamp":{"token":"XCP.Aq04fNWfAJfjEmYlNsOSQ9UD1VnQqU2__vaUQyfD60Ivxzv-BuX8bnt8sX00-eQgOkDVrJOHLMUdfshn-s1YWvHKrOefti139x0DSTZ2ILhgmljkLm8","version":2}} -->
+<!-- livebook:{"offset":9213,"stamp":{"token":"XCP.Vp0ilvGaT4QbuBJaYHA-fi1PbEJSXQRunvCL23MpeEQBDDvmHpngC3ptWjuIGCb14ClseQsG7q7txK3oMbl1sPu2JloPYfGzte-n1BSLQEiEzGoOJ-M","version":2}} -->
