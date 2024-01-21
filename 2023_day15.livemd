@@ -26,8 +26,9 @@ Mix.install([
 ```elixir
 defmodule Parser do
   def parse(input) do
-    String.split(input, "\n", trim: true)
-    |> Enum.map(fn row -> String.split(row, "", trim: true) end)
+    input
+    |> String.replace("\n", "")
+    |> String.split(",", trim: true)
   end
 end
 ```
@@ -42,30 +43,10 @@ defmodule ParserTest do
   import Parser
 
   @input """
-  O....#....
-  O.OO#....#
-  .....##...
-  OO.#O....O
-  .O.....O#.
-  O.#..O.#.#
-  ..O..#O..O
-  .......O..
-  #....###..
-  #OO..#....
+  rn=1,cm-,qp=3,cm=2,\nqp-,pc=\n4,ot=9,ab=5,pc-,pc=6,ot=7
   """
 
-  @expected [
-    ["O", ".", ".", ".", ".", "#", ".", ".", ".", "."],
-    ["O", ".", "O", "O", "#", ".", ".", ".", ".", "#"],
-    [".", ".", ".", ".", ".", "#", "#", ".", ".", "."],
-    ["O", "O", ".", "#", "O", ".", ".", ".", ".", "O"],
-    [".", "O", ".", ".", ".", ".", ".", "O", "#", "."],
-    ["O", ".", "#", ".", ".", "O", ".", "#", ".", "#"],
-    [".", ".", "O", ".", ".", "#", "O", ".", ".", "O"],
-    [".", ".", ".", ".", ".", ".", ".", "O", ".", "."],
-    ["#", ".", ".", ".", ".", "#", "#", "#", ".", "."],
-    ["#", "O", "O", ".", ".", "#", ".", ".", ".", "."]
-  ]
+  @expected ["rn=1", "cm-", "qp=3", "cm=2", "qp-", "pc=4", "ot=9", "ab=5", "pc-", "pc=6", "ot=7"]
 
   describe "parse/1" do
     test "simple example" do
@@ -92,7 +73,25 @@ defmodule PartOne do
 
   def run(input_string) when is_bitstring(input_string), do: run(Parser.parse(input_string))
 
-  def run(input) do
+  def run(inputs) do
+    inputs
+    |> Enum.map(fn input -> hash_alg(input) end)
+    |> Enum.sum()
+  end
+
+  def hash_alg(input) do
+    input
+    |> to_charlist()
+    |> Enum.reduce(0, fn char, res ->
+      # IO.inspect(char, label: :char)
+      addit = res + char
+      # IO.inspect(addit, label: :addit)
+      mult = addit * 17
+      # IO.inspect(mult, label: :mult_17)
+      remaind = rem(mult, 256)
+      # IO.inspect(remaind, label: :remaind_256)
+      remaind
+    end)
   end
 end
 ```
@@ -107,36 +106,30 @@ defmodule PartOneTest do
   import PartOne
 
   @raw_input """
-  O....#....
-  O.OO#....#
-  .....##...
-  OO.#O....O
-  .O.....O#.
-  O.#..O.#.#
-  ..O..#O..O
-  .......O..
-  #....###..
-  #OO..#....
+  rn=1,cm-,qp=3,cm=2,qp-,pc=4,ot=9,ab=5,pc-,pc=6,ot=7
   """
 
   @input Parser.parse(@raw_input)
 
-  @expected_tilt [
-    ["O", "O", "O", "O", ".", "#", ".", "O", ".", "."],
-    ["O", "O", ".", ".", "#", ".", ".", ".", ".", "#"],
-    ["O", "O", ".", ".", "O", "#", "#", ".", ".", "O"],
-    ["O", ".", ".", "#", ".", "O", "O", ".", ".", "."],
-    [".", ".", ".", ".", ".", ".", ".", ".", "#", "."],
-    [".", ".", "#", ".", ".", ".", ".", "#", ".", "#"],
-    [".", ".", "O", ".", ".", "#", ".", "O", ".", "O"],
-    [".", ".", "O", ".", ".", ".", ".", ".", ".", "."],
-    ["#", ".", ".", ".", ".", "#", "#", "#", ".", "."],
-    ["#", ".", ".", ".", ".", "#", ".", ".", ".", "."]
-  ]
-
   describe "run/1" do
     test "main example" do
-      assert run(@raw_input) == 136
+      assert run(@raw_input) == 1320
+    end
+  end
+
+  describe "hash_alg/1" do
+    test "main examples" do
+      assert hash_alg("rn=1") == 30
+      assert hash_alg("cm-") == 253
+      assert hash_alg("qp=3") == 97
+      assert hash_alg("cm=2") == 47
+      assert hash_alg("qp-") == 14
+      assert hash_alg("pc=4") == 180
+      assert hash_alg("ot=9") == 9
+      assert hash_alg("ab=5") == 197
+      assert hash_alg("pc-") == 48
+      assert hash_alg("pc=6") == 214
+      assert hash_alg("ot=7") == 231
     end
   end
 end
@@ -181,16 +174,7 @@ defmodule PartTwoTest do
   import PartTwo
 
   @raw_input """
-  O....#....
-  O.OO#....#
-  .....##...
-  OO.#O....O
-  .O.....O#.
-  O.#..O.#.#
-  ..O..#O..O
-  .......O..
-  #....###..
-  #OO..#....
+  rn=1,cm-,qp=3,cm=2,qp-,pc=4,ot=9,ab=5,pc-,pc=6,ot=7
   """
 
   @input Parser.parse(@raw_input)
@@ -211,4 +195,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":3939,"stamp":{"token":"XCP.HrLiDeccrswtW-tGT2u3VprZceD9V3BVfKUiczclQJn7De9uiWrV3xJuVqa385CLB_FJFYEzov1vp0Cg6rLAs3T5JBV1hXmAFC_hCEFkSijJDLRqyCY","version":2}} -->
+<!-- livebook:{"offset":3547,"stamp":{"token":"XCP.Aq04fNWfAJfjEmYlNsOSQ9UD1VnQqU2__vaUQyfD60Ivxzv-BuX8bnt8sX00-eQgOkDVrJOHLMUdfshn-s1YWvHKrOefti139x0DSTZ2ILhgmljkLm8","version":2}} -->

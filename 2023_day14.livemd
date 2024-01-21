@@ -241,26 +241,27 @@ defmodule PartTwo do
     do: run(Parser.parse(graph_string), iterations)
 
   def run(graph, iterations) do
-    run(graph, iterations, %{}, nil)
+    run(graph, iterations, %{}, nil, false)
     |> PartOne.total_load()
   end
 
-  def run(graph, 1, _, _), do: graph
+  def run(graph, 1, _, _, _), do: graph
+  # def run(graph, iterations_remaining, tally, nil, doubles_found) do
 
-  # def run(graph, iterations_remaining, tally, nil), when Enum.max([0 | Map.values(tally)]) == 2 do: run(graph, iterations_remaining, tally, 1)
-  def run(graph, iterations_remaining, tally, cycle_length) do
+  def run(graph, iterations_remaining, tally, cycle_length, doubles_found) do
     # IO.inspect({tally |> Map.values, cycle_length, iterations_remaining, PartOne.total_load(graph)}, label: :tally_beginning)
 
     cond do
       !cycle_length && 2 in Map.values(tally) && 3 not in Map.values(tally) ->
-        run(graph, iterations_remaining, tally, 1)
+        run(graph, iterations_remaining, tally, 1, true)
 
       cycle_length && 3 in Map.values(tally) ->
         run(
           graph,
           iterations_remaining - div(iterations_remaining, cycle_length) * cycle_length + 1,
           %{},
-          nil
+          nil,
+          true
         )
 
       true ->
@@ -277,7 +278,7 @@ defmodule PartTwo do
 
         # IO.inspect({new_tally |> Map.values, cycle_length, iterations_remaining, PartOne.total_load(res)}, label: :new_tally)
 
-        run(res, iterations_remaining - 1, new_tally, cycle_length)
+        run(res, iterations_remaining - 1, new_tally, cycle_length, doubles_found)
     end
   end
 
@@ -523,4 +524,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":13788,"stamp":{"token":"XCP.w_c-Wdbw1h5NFZ27aDTrXYBXTEhaz2aWzPdvbdj7Rv6RUebo0RoPdLTvnLx2qSHW-GpV7zglXMgi1VTbg7Vg8U7xoBHLKoV3ib2rjEOEGYkrVimo27k","version":2}} -->
+<!-- livebook:{"offset":13776,"stamp":{"token":"XCP.ymoDF0xqKUDEJk4RtbC5b2ItjrvJOyPWtOpYKiYxQhf9peeQ4_m6sGm3S366VNlUYB9KEyoC_fiL3YXpIDKdKOLeQdwyC0XUiHqHUsa4kS0WUzKZ43k","version":2}} -->
