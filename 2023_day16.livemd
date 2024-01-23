@@ -115,10 +115,6 @@ defmodule PartOne do
         cell = tiles |> Enum.at(beam_i) |> Enum.at(beam_j)
 
         case cell do
-          # outside of surface - discard
-          nil ->
-            nil
-
           "." ->
             pass_through(tiles, {beam_i, beam_j, beam_dir})
 
@@ -147,6 +143,9 @@ defmodule PartOne do
             else
               pass_through(tiles, {beam_i, beam_j, beam_dir})
             end
+
+          nil ->
+            nil
         end
       end)
       |> List.flatten()
@@ -276,6 +275,8 @@ PartOne.solve(puzzle_input)
 
 ```elixir
 defmodule PartTwo do
+  import PartOne, except: [run: 1]
+
   def solve(input) do
     IO.puts("--- Part Two ---")
     IO.puts("Result: #{run(input)}")
@@ -294,7 +295,7 @@ defmodule PartTwo do
        end))
     |> List.flatten()
     |> Enum.map(fn starting_point ->
-      PartOne.trace_beams(tiles, [starting_point])
+      trace_beams(tiles, [starting_point])
       |> Enum.count()
     end)
     |> Enum.max()
@@ -343,4 +344,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":7708,"stamp":{"token":"XCP.p-ZHvL0rwvxAJXR3_hViCFi6MBB4roBQ-lHyzJLB5JCuuzTfcPv9-4wyNrwE7gfap5A0kSKejpeNV0h62vpQkTRMa9xJxGpiM_Xqok3qItjf1SQLi9Y","version":2}} -->
+<!-- livebook:{"offset":7695,"stamp":{"token":"XCP.ZXhh0DHuuQ-cWASZ8iPqoTdEDzXBqVTcVNGv_2u6mGnLRitBXClMU-NTIGyhaD-bdQOgv6BJjt--jRlxUpen4Vq5sW86q_hh9yAGmS30L7df8F2Uwi4","version":2}} -->
