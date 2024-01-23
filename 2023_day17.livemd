@@ -1,0 +1,213 @@
+# Advent of Code - Day 17
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"17","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "17", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line -> String.split(line, "", trim: true) end)
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input """
+  2413432311323
+  3215453535623
+  3255245654254
+  3446585845452
+  4546657867536
+  1438598798454
+  4457876987766
+  3637877979653
+  4654967986887
+  4564679986453
+  1224686865563
+  2546548887735
+  4322674655533
+  """
+
+  @expected [
+    [".", "|", ".", ".", ".", "\\", ".", ".", ".", "."],
+    ["|", ".", "-", ".", "\\", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", "|", "-", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", "|", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+    [".", ".", ".", ".", ".", ".", ".", ".", ".", "\\"],
+    [".", ".", ".", ".", "/", ".", "\\", "\\", ".", "."],
+    [".", "-", ".", "-", "/", ".", ".", "|", ".", "."],
+    [".", "|", ".", ".", ".", ".", "-", "|", ".", "\\"],
+    [".", ".", "/", "/", ".", "|", ".", ".", ".", "."]
+  ]
+
+  describe "parse/1" do
+    test "simple example" do
+      assert parse(@input) == @expected
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(tiles_string) when is_bitstring(tiles_string), do: run(Parser.parse(tiles_string))
+
+  def run(tiles) do
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @raw_input """
+  2413432311323
+  3215453535623
+  3255245654254
+  3446585845452
+  4546657867536
+  1438598798454
+  4457876987766
+  3637877979653
+  4654967986887
+  4564679986453
+  1224686865563
+  2546548887735
+  4322674655533
+  """
+
+  @input Parser.parse(@raw_input)
+
+  describe "run/1" do
+    test "main example" do
+      assert run(@raw_input) == 102
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+PartOne.solve(puzzle_input)
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  import PartOne, except: [run: 1]
+
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(tiles_string) when is_bitstring(tiles_string), do: run(Parser.parse(tiles_string))
+
+  def run(tiles) do
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @raw_input """
+  2413432311323
+  3215453535623
+  3255245654254
+  3446585845452
+  4546657867536
+  1438598798454
+  4457876987766
+  3637877979653
+  4654967986887
+  4564679986453
+  1224686865563
+  2546548887735
+  4322674655533
+  """
+
+  @input Parser.parse(@raw_input)
+
+  describe "run/1" do
+    test "main example" do
+      assert run(@raw_input) == 51
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+# 8674
+```
+
+<!-- livebook:{"offset":3607,"stamp":{"token":"XCP.OpShfmrcwGX7L5pMn-6_toU6HvNOXoFXcMsr8uhYsgSdZfjL2MZ6efy0xFG1AWlc1j5ebAZgdxBUk0yYazI1cTRKMhOryNuBtGCJFm8ztJU6SNnzB4A","version":2}} -->
