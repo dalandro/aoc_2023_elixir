@@ -281,10 +281,23 @@ defmodule PartTwo do
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(input_string) when is_bitstring(input_string), do: run(Parser.parse(input_string))
+  def run(tiles_string) when is_bitstring(tiles_string), do: run(Parser.parse(tiles_string))
 
-  def run(inputs) do
-    inputs
+  def run(tiles) do
+    # left and right side entering
+    (Enum.map(0..(length(tiles) - 1), fn entering_row ->
+       [{entering_row, 0, :right}, {entering_row, length(hd(tiles)) - 1, :left}]
+     end) ++
+       Enum.map(0..(length(hd(tiles)) - 1), fn entering_column ->
+         # top and bottom side entering
+         [{0, entering_column, :down}, {length(tiles) - 1, entering_column, :up}]
+       end))
+    |> List.flatten()
+    |> Enum.map(fn starting_point ->
+      PartOne.trace_beams(tiles, [starting_point])
+      |> Enum.count()
+    end)
+    |> Enum.max()
   end
 end
 ```
@@ -299,24 +312,23 @@ defmodule PartTwoTest do
   import PartTwo
 
   @raw_input """
-  .|...\....
-  |.-.\.....
+  .|...\\....
+  |.-.\\.....
   .....|-...
   ........|.
   ..........
-  .........\
-  ..../.\\..
+  .........\\
+  ..../.\\\\..
   .-.-/..|..
-  .|....-|.\
+  .|....-|.\\
   ..//.|....
   """
 
   @input Parser.parse(@raw_input)
-  @steps Enum.map(@input, fn step_string -> parse_step(step_string) end)
 
   describe "run/1" do
     test "main example" do
-      assert run(@raw_input) == 145
+      assert run(@raw_input) == 51
     end
   end
 end
@@ -328,6 +340,7 @@ ExUnit.run()
 
 ```elixir
 PartTwo.solve(puzzle_input)
+# 8674
 ```
 
-<!-- livebook:{"offset":7235,"stamp":{"token":"XCP.9GmZV17OO-SHvPH6NQKABZfbpKhKDITW-Tfe66o2NGk_j03VsVNctHr_qkTijBqTOf3jpHqw-qsUoO7X96ZD88sKjydetQZHsCzRllUE7kVC_3pMVsE","version":2}} -->
+<!-- livebook:{"offset":7708,"stamp":{"token":"XCP.p-ZHvL0rwvxAJXR3_hViCFi6MBB4roBQ-lHyzJLB5JCuuzTfcPv9-4wyNrwE7gfap5A0kSKejpeNV0h62vpQkTRMa9xJxGpiM_Xqok3qItjf1SQLi9Y","version":2}} -->
