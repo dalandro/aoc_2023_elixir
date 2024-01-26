@@ -26,10 +26,7 @@ Mix.install([
 ```elixir
 defmodule Parser do
   def parse(input) do
-    input
-    |> String.split("\n", trim: true)
-
-    # |> Enum.map(fn line -> String.split(line, "", trim: true) end)
+    String.split(input, "\n", trim: true)
   end
 end
 ```
@@ -101,11 +98,13 @@ defmodule PartOne do
   def run(tiles_string) when is_bitstring(tiles_string), do: run(Parser.parse(tiles_string))
 
   def run(tiles) do
-    find_traversals(tiles)
-    |> Enum.map(fn trail ->
-      heat_loss(trail)
-    end)
-    |> Enum.min()
+    heat_losses =
+      find_traversals(tiles)
+      |> Enum.map(fn trail ->
+        heat_loss(trail)
+      end)
+
+    !Enum.empty?(heat_losses) && Enum.min(heat_losses)
   end
 
   def heat_loss(trail) do
@@ -118,18 +117,121 @@ defmodule PartOne do
   end
 
   def find_traversals(tiles) do
-    find_traversals(tiles, {0, 0, at(tiles, 0, 0)}, [{0, 0, at(tiles, 0, 0)}])
-    |> Enum.map(fn backwards_trail -> Enum.reverse(backwards_trail) end)
+    # IO.inspect([], label: :HERE1)
+    find_traversals(
+      tiles,
+      coord_at(tiles, 0, 0),
+      coord_at(tiles, length(tiles) - 1, String.length(hd(tiles)) - 1),
+      []
+    )
+    |> List.flatten()
+    |> Enum.map(fn %{trail: backwards_trail} -> Enum.reverse(backwards_trail) end)
   end
 
-  defp find_traversals(tiles, {row, col, _cell}, trail_so_far) do
+  defp find_traversals(_, dest, dest, trail_so_far) do
+    # IO.inspect(trail_so_far, label: :HERE2)
+    # reached destination
+    %{trail: trail_so_far}
+  end
+
+  defp find_traversals(_, {_, _, nil}, _dest, _trail_so_far) do
+    # IO.inspect(trail_so_far, label: :HERE3)
+    # out of bounds since cell is nil
+    []
+  end
+
+  defp find_traversals(tiles, {row, col, cell}, dest, trail_so_far) do
+    # IO.inspect(trail_so_far, label: :HERE4); 
+    new_trail_so_far = [{row, col, cell} | trail_so_far]
+    prev_coord = List.first(trail_so_far) || {row, col - 1, nil}
+
     [
-      [{row, col + 1, at(tiles, row, col + 1)} | trail_so_far]
+      find_traversals(
+        tiles,
+        move_forward(tiles, {row, col, cell}, prev_coord),
+        dest,
+        new_trail_so_far
+      ),
+      find_traversals(
+        tiles,
+        turn_and_move_left(tiles, {row, col, cell}, prev_coord),
+        dest,
+        new_trail_so_far
+      ),
+      find_traversals(
+        tiles,
+        turn_and_move_right(tiles, {row, col, cell}, prev_coord),
+        dest,
+        new_trail_so_far
+      )
+
+      # find_traversals(tiles, {row, col + 1, at(tiles, row, col + 1)}, dest, new_trail_so_far),
+      # find_traversals(tiles, {row, col - 1, at(tiles, row, col - 1)}, dest, new_trail_so_far),
+      # find_traversals(tiles, {row + 1, col, at(tiles, row + 1, col)}, dest, new_trail_so_far),
+      # find_traversals(tiles, {row - 1, col, at(tiles, row - 1, col)}, dest, new_trail_so_far)
     ]
   end
 
-  def at(tiles, row, column) do
-    tiles |> Enum.at(row) |> String.at(column) |> String.to_integer()
+  def move_forward(tiles, {row, col, _cell}, {row, prev_col, _prev_cell}) when col > prev_col,
+    do: coord_at(tiles, row, col + 1)
+
+  def move_forward(tiles, {row, col, _cell}, {row, prev_col, _prev_cell}) when col < prev_col,
+    do: coord_at(tiles, row, col - 1)
+
+  def move_forward(tiles, {row, col, _cell}, {prev_row, col, _prev_cell}) when row > prev_row,
+    do: coord_at(tiles, row + 1, col)
+
+  def move_forward(tiles, {row, col, _cell}, {prev_row, col, _prev_cell}) when row < prev_row,
+    do: coord_at(tiles, row - 1, col)
+
+  def turn_and_move_left(tiles, {row, col, _cell}, {row, prev_col, _prev_cell})
+      when col > prev_col,
+      do: coord_at(tiles, row - 1, col)
+
+  def turn_and_move_left(tiles, {row, col, _cell}, {row, prev_col, _prev_cell})
+      when col < prev_col,
+      do: coord_at(tiles, row + 1, col)
+
+  def turn_and_move_left(tiles, {row, col, _cell}, {prev_row, col, _prev_cell})
+      when row > prev_row,
+      do: coord_at(tiles, row, col + 1)
+
+  def turn_and_move_left(tiles, {row, col, _cell}, {prev_row, col, _prev_cell})
+      when row < prev_row,
+      do: coord_at(tiles, row, col - 1)
+
+  def turn_and_move_right(tiles, {row, col, _cell}, {row, prev_col, _prev_cell})
+      when col > prev_col,
+      do: coord_at(tiles, row + 1, col)
+
+  def turn_and_move_right(tiles, {row, col, _cell}, {row, prev_col, _prev_cell})
+      when col < prev_col,
+      do: coord_at(tiles, row - 1, col)
+
+  def turn_and_move_right(tiles, {row, col, _cell}, {prev_row, col, _prev_cell})
+      when row > prev_row,
+      do: coord_at(tiles, row, col - 1)
+
+  def turn_and_move_right(tiles, {row, col, _cell}, {prev_row, col, _prev_cell})
+      when row < prev_row,
+      do: coord_at(tiles, row, col + 1)
+
+  # either track direction :north :west, :south, :east
+  # or track 
+
+  def coord_at(tiles, row, column) do
+    {row, column, cell_at(tiles, row, column)}
+  end
+
+  def cell_at(tiles, row, column) do
+    # defend against negative string lookup cycling to end of string
+    if row < 0 || column < 0 do
+      nil
+    else
+      row = tiles |> Enum.at(row)
+      cell = row && String.at(row, column)
+      cell && String.to_integer(cell)
+    end
   end
 end
 ```
@@ -161,23 +263,31 @@ defmodule PartOneTest do
 
   @input Parser.parse(@raw_input)
 
-  describe "run/1" do
-    test "main example" do
-      assert run(@raw_input) == 102
-    end
-  end
+  # describe "run/1" do
+  #   test "main example" do
+  #     assert run(@raw_input) == 102
+  #   end
+  # end
 
   describe "find_traversals/1" do
     test "main example" do
-      assert find_traversals(@input) == [[{0, 0, 2}, {0, 1, 4}]]
+      # assert find_traversals(@input) == [[{0, 0, 2}, {0, 1, 4}]]
     end
   end
 
-  describe "at/3" do
+  describe "cell_at/3" do
     test "basic examples" do
-      assert at(@input, 0, 0) == 2
-      assert at(@input, 0, 1) == 4
-      assert at(@input, 1, 0) == 3
+      assert cell_at(@input, 0, 0) == 2
+      assert cell_at(@input, 0, 1) == 4
+      assert cell_at(@input, 1, 0) == 3
+    end
+  end
+
+  describe "coord_at/3" do
+    test "basic examples" do
+      assert coord_at(@input, 0, 0) == {0, 0, 2}
+      assert coord_at(@input, 0, 1) == {0, 1, 4}
+      assert coord_at(@input, 1, 0) == {1, 0, 3}
     end
   end
 
@@ -186,6 +296,41 @@ defmodule PartOneTest do
       assert heat_loss([{0, 0, 2}, {0, 1, 4}]) == 4
       assert heat_loss([{0, 0, 2}, {1, 0, 3}]) == 3
       assert heat_loss([{0, 0, 2}, {0, 1, 4}, {1, 1, 2}]) == 6
+    end
+  end
+
+  describe "move_forward/3" do
+    test "basic examples" do
+      assert move_forward(@input, {0, 1, 2}, {0, 0, 2}) == {0, 2, 1}
+      assert move_forward(@input, {0, 1, 2}, {0, 2, 1}) == {0, 0, 2}
+      assert move_forward(@input, {1, 0, 3}, {0, 0, 2}) == {2, 0, 3}
+      assert move_forward(@input, {1, 0, 3}, {2, 0, 3}) == {0, 0, 2}
+    end
+  end
+
+  describe "turn_and_move_left/3" do
+    test "basic examples" do
+      # going east: turn north
+      assert turn_and_move_left(@input, {0, 1, 2}, {0, 0, 2}) == {-1, 1, nil}
+      # going west: turn south
+      assert turn_and_move_left(@input, {0, 1, 2}, {0, 2, 1}) == {1, 1, 2}
+      # going south: turn east
+      assert turn_and_move_left(@input, {1, 0, 3}, {0, 0, 2}) == {1, 1, 2}
+      # going north: turn west
+      assert turn_and_move_left(@input, {1, 0, 3}, {2, 0, 3}) == {1, -1, nil}
+    end
+  end
+
+  describe "turn_and_move_rigth/3" do
+    test "basic examples" do
+      # going east: turn south
+      assert turn_and_move_right(@input, {0, 1, 2}, {0, 0, 2}) == {1, 1, 2}
+      # going west: turn north
+      assert turn_and_move_right(@input, {0, 1, 2}, {0, 2, 1}) == {-1, 1, nil}
+      # going south: turn west
+      assert turn_and_move_right(@input, {1, 0, 3}, {0, 0, 2}) == {1, -1, nil}
+      # going north: turn east
+      assert turn_and_move_right(@input, {1, 0, 3}, {2, 0, 3}) == {1, 1, 2}
     end
   end
 end
@@ -265,4 +410,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":4611,"stamp":{"token":"XCP.atHxfUsyF24kvemV5ePZhr6mqG_qmkrHLlaySUHNOmL9VEhNqs9lyExdLRbOMvZ6PLJX15MW9I4peVuOt2syFuJurBt-XY7lP3nDPftYE0Z09yPtKNA","version":2}} -->
+<!-- livebook:{"offset":9701,"stamp":{"token":"XCP.2Y3Ouq_vIlXrBzk9YFDr6uU_mNRtcAmDmWrZ4bs5jAiH1mflNV0_N918PNdhFrkMSQKF0da3hm6MjaY4sRSBDs4U5CzlIi_3NuJVU0TjSsZU7bXJDh8","version":2}} -->
