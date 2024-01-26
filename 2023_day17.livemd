@@ -28,7 +28,8 @@ defmodule Parser do
   def parse(input) do
     input
     |> String.split("\n", trim: true)
-    |> Enum.map(fn line -> String.split(line, "", trim: true) end)
+
+    # |> Enum.map(fn line -> String.split(line, "", trim: true) end)
   end
 end
 ```
@@ -59,16 +60,19 @@ defmodule ParserTest do
   """
 
   @expected [
-    [".", "|", ".", ".", ".", "\\", ".", ".", ".", "."],
-    ["|", ".", "-", ".", "\\", ".", ".", ".", ".", "."],
-    [".", ".", ".", ".", ".", "|", "-", ".", ".", "."],
-    [".", ".", ".", ".", ".", ".", ".", ".", "|", "."],
-    [".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
-    [".", ".", ".", ".", ".", ".", ".", ".", ".", "\\"],
-    [".", ".", ".", ".", "/", ".", "\\", "\\", ".", "."],
-    [".", "-", ".", "-", "/", ".", ".", "|", ".", "."],
-    [".", "|", ".", ".", ".", ".", "-", "|", ".", "\\"],
-    [".", ".", "/", "/", ".", "|", ".", ".", ".", "."]
+    "2413432311323",
+    "3215453535623",
+    "3255245654254",
+    "3446585845452",
+    "4546657867536",
+    "1438598798454",
+    "4457876987766",
+    "3637877979653",
+    "4654967986887",
+    "4564679986453",
+    "1224686865563",
+    "2546548887735",
+    "4322674655533"
   ]
 
   describe "parse/1" do
@@ -97,6 +101,35 @@ defmodule PartOne do
   def run(tiles_string) when is_bitstring(tiles_string), do: run(Parser.parse(tiles_string))
 
   def run(tiles) do
+    find_traversals(tiles)
+    |> Enum.map(fn trail ->
+      heat_loss(trail)
+    end)
+    |> Enum.min()
+  end
+
+  def heat_loss(trail) do
+    Enum.map(trail_excluding_start(trail), fn {_, _, cell_val} -> cell_val end)
+    |> Enum.sum()
+  end
+
+  defp trail_excluding_start(trail) do
+    tl(trail)
+  end
+
+  def find_traversals(tiles) do
+    find_traversals(tiles, {0, 0, at(tiles, 0, 0)}, [{0, 0, at(tiles, 0, 0)}])
+    |> Enum.map(fn backwards_trail -> Enum.reverse(backwards_trail) end)
+  end
+
+  defp find_traversals(tiles, {row, col, _cell}, trail_so_far) do
+    [
+      [{row, col + 1, at(tiles, row, col + 1)} | trail_so_far]
+    ]
+  end
+
+  def at(tiles, row, column) do
+    tiles |> Enum.at(row) |> String.at(column) |> String.to_integer()
   end
 end
 ```
@@ -131,6 +164,28 @@ defmodule PartOneTest do
   describe "run/1" do
     test "main example" do
       assert run(@raw_input) == 102
+    end
+  end
+
+  describe "find_traversals/1" do
+    test "main example" do
+      assert find_traversals(@input) == [[{0, 0, 2}, {0, 1, 4}]]
+    end
+  end
+
+  describe "at/3" do
+    test "basic examples" do
+      assert at(@input, 0, 0) == 2
+      assert at(@input, 0, 1) == 4
+      assert at(@input, 1, 0) == 3
+    end
+  end
+
+  describe "heat_loss/3" do
+    test "basic examples" do
+      assert heat_loss([{0, 0, 2}, {0, 1, 4}]) == 4
+      assert heat_loss([{0, 0, 2}, {1, 0, 3}]) == 3
+      assert heat_loss([{0, 0, 2}, {0, 1, 4}, {1, 1, 2}]) == 6
     end
   end
 end
@@ -210,4 +265,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":3607,"stamp":{"token":"XCP.OpShfmrcwGX7L5pMn-6_toU6HvNOXoFXcMsr8uhYsgSdZfjL2MZ6efy0xFG1AWlc1j5ebAZgdxBUk0yYazI1cTRKMhOryNuBtGCJFm8ztJU6SNnzB4A","version":2}} -->
+<!-- livebook:{"offset":4611,"stamp":{"token":"XCP.atHxfUsyF24kvemV5ePZhr6mqG_qmkrHLlaySUHNOmL9VEhNqs9lyExdLRbOMvZ6PLJX15MW9I4peVuOt2syFuJurBt-XY7lP3nDPftYE0Z09yPtKNA","version":2}} -->
