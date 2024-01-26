@@ -121,55 +121,65 @@ defmodule PartOne do
     find_traversals(
       tiles,
       coord_at(tiles, 0, 0),
+      {0, -1, nil},
       coord_at(tiles, length(tiles) - 1, String.length(hd(tiles)) - 1),
-      []
+      MapSet.new()
     )
     |> List.flatten()
     |> Enum.map(fn %{trail: backwards_trail} -> Enum.reverse(backwards_trail) end)
   end
 
-  defp find_traversals(_, dest, dest, trail_so_far) do
+  defp find_traversals(_, dest, _prev, dest, trail_so_far) do
     # IO.inspect(trail_so_far, label: :HERE2)
+    # IO.inspect({dest, trail_so_far}, label: :HERE2)
     # reached destination
     %{trail: trail_so_far}
   end
 
-  defp find_traversals(_, {_, _, nil}, _dest, _trail_so_far) do
+  defp find_traversals(_, {_row, _col, nil}, _prev, _dest, _trail_so_far) do
     # IO.inspect(trail_so_far, label: :HERE3)
+    # IO.inspect({{row, col, nil}, trail_so_far}, label: :HERE3)
     # out of bounds since cell is nil
     []
   end
 
-  defp find_traversals(tiles, {row, col, cell}, dest, trail_so_far) do
-    # IO.inspect(trail_so_far, label: :HERE4); 
-    new_trail_so_far = [{row, col, cell} | trail_so_far]
-    prev_coord = List.first(trail_so_far) || {row, col - 1, nil}
+  defp find_traversals(tiles, current_coord, prev_coord, dest, trail_so_far) do
+    # IO.inspect({current_coord, trail_so_far}, label: :HERE4); 
+    # IO.inspect(trail_so_far, label: :HERE5); 
 
-    [
-      find_traversals(
-        tiles,
-        move_forward(tiles, {row, col, cell}, prev_coord),
-        dest,
-        new_trail_so_far
-      ),
-      find_traversals(
-        tiles,
-        turn_and_move_left(tiles, {row, col, cell}, prev_coord),
-        dest,
-        new_trail_so_far
-      ),
-      find_traversals(
-        tiles,
-        turn_and_move_right(tiles, {row, col, cell}, prev_coord),
-        dest,
-        new_trail_so_far
-      )
+    # TODO: Is there ever a reason to cross over the same cell?
+    #       Is it possible to do a loop in a low-cost path to avoid high-cost cells that goes over same cell?
+    #       If so, we need to not just check the current cell, but also the direction (or maybe just previous cell) 
+    if MapSet.member?(trail_so_far, current_coord) do
+      # IO.puts("HERE")
+      []
+    else
+      new_trail_so_far = MapSet.put(trail_so_far, current_coord)
 
-      # find_traversals(tiles, {row, col + 1, at(tiles, row, col + 1)}, dest, new_trail_so_far),
-      # find_traversals(tiles, {row, col - 1, at(tiles, row, col - 1)}, dest, new_trail_so_far),
-      # find_traversals(tiles, {row + 1, col, at(tiles, row + 1, col)}, dest, new_trail_so_far),
-      # find_traversals(tiles, {row - 1, col, at(tiles, row - 1, col)}, dest, new_trail_so_far)
-    ]
+      [
+        find_traversals(
+          tiles,
+          turn_and_move_left(tiles, current_coord, prev_coord),
+          current_coord,
+          dest,
+          new_trail_so_far
+        ),
+        find_traversals(
+          tiles,
+          move_forward(tiles, current_coord, prev_coord),
+          current_coord,
+          dest,
+          new_trail_so_far
+        ),
+        find_traversals(
+          tiles,
+          turn_and_move_right(tiles, current_coord, prev_coord),
+          current_coord,
+          dest,
+          new_trail_so_far
+        )
+      ]
+    end
   end
 
   def move_forward(tiles, {row, col, _cell}, {row, prev_col, _prev_cell}) when col > prev_col,
@@ -216,9 +226,6 @@ defmodule PartOne do
       when row < prev_row,
       do: coord_at(tiles, row, col + 1)
 
-  # either track direction :north :west, :south, :east
-  # or track 
-
   def coord_at(tiles, row, column) do
     {row, column, cell_at(tiles, row, column)}
   end
@@ -261,13 +268,20 @@ defmodule PartOneTest do
   4322674655533
   """
 
+  @raw_input2 """
+  123
+  456
+  789
+  """
+
   @input Parser.parse(@raw_input)
 
-  # describe "run/1" do
-  #   test "main example" do
-  #     assert run(@raw_input) == 102
-  #   end
-  # end
+  describe "run/1" do
+    test "main example" do
+      # assert run(@raw_input) == 102
+      assert run(@raw_input2)
+    end
+  end
 
   describe "find_traversals/1" do
     test "main example" do
@@ -321,7 +335,7 @@ defmodule PartOneTest do
     end
   end
 
-  describe "turn_and_move_rigth/3" do
+  describe "turn_and_move_rigteeeh/3" do
     test "basic examples" do
       # going east: turn south
       assert turn_and_move_right(@input, {0, 1, 2}, {0, 0, 2}) == {1, 1, 2}
@@ -336,6 +350,10 @@ defmodule PartOneTest do
 end
 
 ExUnit.run()
+
+# 123 
+# 456 
+# 789 
 ```
 
 ### Solution - Part 1
@@ -410,4 +428,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":9701,"stamp":{"token":"XCP.2Y3Ouq_vIlXrBzk9YFDr6uU_mNRtcAmDmWrZ4bs5jAiH1mflNV0_N918PNdhFrkMSQKF0da3hm6MjaY4sRSBDs4U5CzlIi_3NuJVU0TjSsZU7bXJDh8","version":2}} -->
+<!-- livebook:{"offset":10021,"stamp":{"token":"XCP.uTGcY2Tl-kPUk-Jsn7lb98wKf5qZQ6izixLDZOJcWQoqqsJst8yf09cHi0W5lnbbsTe4mIRtxXMa9rl-iQlIjBqjLjEcNPvIjydLG6UO3lN0bg7wscA","version":2}} -->
