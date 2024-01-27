@@ -484,7 +484,7 @@ defmodule PartOne do
   def run(tiles_string) when is_bitstring(tiles_string),
     do: run(Parser.parse_to_hash(tiles_string))
 
-  def run(tiles) do
+  def run_old(tiles) do
     heat_losses = find_traversals(tiles)
     # |> Enum.map(fn trail ->
     # IO.inspect(trail)
@@ -492,6 +492,180 @@ defmodule PartOne do
     # end)
 
     !Enum.empty?(heat_losses) && Enum.min(heat_losses)
+  end
+
+  def run(tiles) do
+    # use dijkstra's algorithm, or A* 
+    vertices = tiles |> Enum.map(fn {{row, col}, cell} -> {row, col, cell} end)
+    source = coord_at(tiles, 0, 0)
+
+    {dist, prev, q} =
+      Enum.reduce(vertices, {%{}, %{}, []}, fn v, {dist, prev, q} ->
+        {Map.put(dist, v, :infinity), Map.put(prev, v, :undefined), [v | q]}
+      end)
+
+    q = Enum.reverse(q)
+    # This is 0 rather than the value of cell 0,0 because that cell doesn't count in burning
+    dist = Map.put(dist, source, 0)
+
+    {final_dist, prev} = reduce_q(tiles, q, dist, prev)
+
+    dest = coord_at(tiles, number_of_rows(tiles) - 1, number_of_columns(tiles) - 1)
+
+    # IO.inspect(final_dist)
+    # IO.inspect(dest)
+    # IO.inspect(prev)
+    result_path = path(prev, dest)
+
+    # IO.inspect(Map.values(prev) |> Enum.count(fn val -> val == :undefined end), label: :count_of_undefined)
+    # IO.inspect(Map.values(prev) |> Enum.count(fn val -> val != :undefined end), label: :count_of_not_undefined)
+
+    # IO.inspect(result_path, label: :result_path)
+
+    processed_output =
+      Enum.map(tiles, fn {{row, col}, cell} ->
+        if Enum.find(result_path, fn {res_row, res_col, _} ->
+             {row, col} == {res_row, res_col}
+           end) do
+          {{row, col}, "."}
+        else
+          {{row, col}, cell}
+        end
+      end)
+
+    processed_output_final =
+      Enum.map(0..(number_of_rows(tiles) - 1), fn row ->
+        Enum.map(0..(number_of_columns(tiles) - 1), fn col ->
+          Enum.find_value(processed_output, fn {{res_row, res_col}, cell} ->
+            {res_row, res_col} == {row, col} && cell
+          end)
+        end)
+        |> Enum.join()
+        |> IO.puts()
+      end)
+
+    # IO.inspect(processed_output_final, label: :processed_output)
+
+    Map.get(final_dist, dest)
+  end
+
+  def path(prev, coord), do: path(prev, coord, [])
+  def path(prev, :undefined, res), do: Enum.reverse(res)
+
+  def path(prev, coord, res) do
+    next_val = Map.get(prev, coord)
+    path(prev, next_val, [coord | res])
+  end
+
+  defp reduce_q(tiles, q, dist, prev) do
+    # IO.inspect({q, dist}, label: :reduce_q_start_q_dist)
+
+    u = vertex_in_q_with_min_dist(q, dist)
+    q = List.delete(q, u)
+    IO.inspect(u, label: :u)
+
+    # IO.inspect(neighbours_of_u_still_in_q(tiles, q, u), label: :neighbours_of_u_still_in_q)
+
+    {dist, prev} =
+      Enum.reduce(neighbours_of_u_still_in_q(tiles, q, u), {dist, prev}, fn v, {dist, prev} ->
+        # IO.inspect({v, {dist, prev}}, label: :reduce_over_neighbours_in_q)
+        IO.inspect(v, label: :v)
+        IO.inspect({Map.get(dist, u), edge(u, v)}, label: :dist_u_and_edge_u_v)
+
+        alt =
+          if :infinity in [Map.get(dist, u), edge(u, v)] do
+            :infinity
+          else
+            Map.get(dist, u) + edge(u, v)
+          end
+
+        v_dist = Map.get(dist, v)
+        IO.inspect({alt, v_dist, Map.get(prev, u)}, label: :alt_and_v_dist_and_prevu)
+
+        # IO.inspect(alt != :infinity && (v_dist == :infinity || alt < v_dist), label: :regular_condition_succ)
+        # IO.inspect(!violates_three_forward_limit_rule?(u, v, prev), label: :three_forward_limit_succ)
+        # IO.inspect({u, v, prev}, label: :u_v_prev)
+        if alt != :infinity && (v_dist == :infinity || alt < v_dist) &&
+             v != Map.get(prev, u) &&
+             !violates_three_forward_limit_rule?(u, v, prev) do
+          IO.inspect({v, alt}, label: :new_dist_for_v)
+          {Map.put(dist, v, alt), Map.put(prev, v, u)}
+        else
+          {dist, prev}
+        end
+      end)
+
+    # IO.inspect({dist}, label: :after_reduce_dist)
+
+    if Enum.empty?(q) do
+      {dist, prev}
+    else
+      # IO.inspect({q, dist}, label: :reduce_q_end_q_dist)
+      reduce_q(tiles, q, dist, prev)
+    end
+  end
+
+  def violates_three_forward_limit_rule?(current_coord, potential_next_coord, prev) do
+    prev_coord = Map.get(prev, current_coord)
+    prev_coordx2 = Map.get(prev, prev_coord)
+    prev_coordx3 = Map.get(prev, prev_coordx2)
+
+    # IO.inspect({current_coord, potential_next_coord, prev}, label: :input_to_violate_func)
+    # IO.inspect({prev_coord, prev_coordx2, prev_coordx3}, label: :prev_coords_from_prev)
+
+    steps = [prev_coordx3, prev_coordx2, prev_coord, current_coord, potential_next_coord]
+
+    # IO.inspect({steps, !Enum.any?(steps, fn v -> v in [nil, :undefined] end) && all_straight?(steps)}, label: :determining_forward_limit)
+    !Enum.any?(steps, fn v -> v in [nil, :undefined] end) && all_straight?(steps)
+    # && straight?(prev_coord, current_coord)
+    # && straight?(prev_coordx2, prev_coord)
+    # && straight?(prev_coordx3, prev_coordx2)
+
+    # before1 = Map.get(prev, u)
+    # before2 = Map.get(prev, before1)
+    # before3 = Map.get(prev, before2)
+  end
+
+  defp all_straight?(coords) do
+    # IO.inspect(coords, label: :coords_to_check_if_all_straight)
+    Enum.map(coords, fn {row, _, _} -> row end) |> Enum.uniq() |> Enum.count() == 1 ||
+      Enum.map(coords, fn {_, col, _} -> col end) |> Enum.uniq() |> Enum.count() == 1
+  end
+
+  def vertex_in_q_with_min_dist(q, dist) do
+    # IO.inspect(q, label: :q)
+    # IO.inspect(dist, label: :dist)
+    Enum.min_by(q, fn v ->
+      v_dist = Map.get(dist, v)
+
+      if v_dist == :infinity do
+        9_999_999_999_999
+      else
+        v_dist
+      end
+    end)
+  end
+
+  defp neighbours_of_u_still_in_q(tiles, q, u) do
+    {u_row, u_col, _u_cell} = u
+
+    potential_neighbours = [
+      coord_at(tiles, u_row + 1, u_col),
+      coord_at(tiles, u_row - 1, u_col),
+      coord_at(tiles, u_row, u_col + 1),
+      coord_at(tiles, u_row, u_col - 1)
+    ]
+
+    # IO.inspect(potential_neighbours, label: :potential_neighbours)
+    Enum.filter(potential_neighbours, fn neighbour ->
+      # Enum.any?(q, fn {q_row, q_col, q_cell} -> {q_row, q_col, q_cell} == neighbour end) \
+      neighbour in q
+    end)
+  end
+
+  # TODO - this is basically just maybe the cell value of v? ()
+  defp edge(_u, {_, _, v_burn}) when is_integer(v_burn) do
+    v_burn
   end
 
   def heat_loss(trail) do
@@ -520,29 +694,11 @@ defmodule PartOne do
   end
 
   # out of bounds since cell is nil
-  defp find_traversals(
-         _,
-         {_row, _col, nil, _direction},
-         _steps_forward,
-         _dest,
-         _trail_so_far,
-         _heat
-       ),
-       do: nil
-
+  defp find_traversals(_, {_, _, nil, _}, _, _, _, _), do: nil
   # reached destination
-  defp find_traversals(
-         _,
-         {row, col, _cell, _dir},
-         _steps_forward,
-         {row, col, _cell2},
-         _trail_so_far,
-         heat
-       ),
-       do: heat
-
+  defp find_traversals(_, {row, col, _, _}, _, {row, col, _}, _, heat), do: heat
   # too many steps forward and haven't landed at dest yet
-  defp find_traversals(_, _curr, 4, _dest, _trail_so_far, _heat), do: nil
+  defp find_traversals(_, _, 4, _, _, _), do: nil
 
   defp find_traversals(
          tiles,
@@ -642,13 +798,13 @@ defmodule PartOne do
   defp number_of_rows(tiles) do
     # Enum.count(tiles)
     {{row, _column}, _cell} = Enum.max_by(tiles, fn {{row, _column}, _cell} -> row end)
-    row
+    row + 1
   end
 
   defp number_of_columns(tiles) do
     # Enum.count(Map.get(tiles, 0))
     {{_row, column}, _cell} = Enum.max_by(tiles, fn {{_row, column}, _cell} -> column end)
-    column
+    column + 1
   end
 end
 ```
@@ -659,7 +815,7 @@ end
 ExUnit.start(autorun: false)
 
 # :cprof.start()
-:eprof.start_profiling([self()])
+# :eprof.start_profiling([self()])
 
 defmodule PartOneTest do
   use ExUnit.Case, async: true
@@ -674,25 +830,58 @@ defmodule PartOneTest do
   1438598798454
   4457876987766
   3637877979653
-  4654967986887
-  4564679986453
-  1224686865563
-  2546548887735
-  4322674655533
   """
 
+  # 2..34....1323
+  # 32....35.5623
+  # 32552456...54
+  # 3446585845.52
+  # 4546657867..6
+  # 14385987984.4
+  # 44578769877.6
+  # 36378779796..
+  # 465496798688.
+  # 456467998645.
+  # 12246868655..
+  # 25465488877.5
+  # 43226746555..
+
+  # 4 + 1 + 1 +
+  # 5 + 4 + 5 +
+  # 3 + 2 + 3 + 1 +
+  # 3 +
+  # 5 +
+  # 4 + 2 +
+  # 4 +
+  # 5 + 3 +
+  # 5 +
+  # 6 +
+  # 5 +
+  # 3 +
+  # 7 +
+  # 3 +
+  # 3 +
+  # 6 +
+  # 3 +
+  # 3 +
+  # 3 
+
   @raw_input2 """
-  24134323113
-  32154535356
-  32552456542
+  123
+  456
   """
+
+  # 4+5+6
+  # 4+5+2+3+6
+  # 2+5+6
+  # 2+3+6
 
   @input Parser.parse_to_hash(@raw_input)
 
   describe "run/1" do
     test "main example" do
-      # assert run(@raw_input) == 102
-      assert run(@raw_input2)
+      # assert run(@raw_input2) == 2 + 3 + 6
+      assert run(@raw_input) == 102
     end
   end
 
@@ -764,15 +953,111 @@ defmodule PartOneTest do
       assert turn_and_move_right(@input, {1, 0, 3, :north}) == {1, 1, 2, :east}
     end
   end
+
+  describe "vertex_in_q_with_min_dist/2" do
+    test "simple example" do
+      assert vertex_in_q_with_min_dist(
+               [{0, 1, 1}, {0, 0, 3}, {1, 0, 2}],
+               %{{0, 0, 3} => 0, {0, 1, 1} => :infinity, {1, 0, 2} => :infinity}
+             ) == {0, 0, 3}
+
+      assert vertex_in_q_with_min_dist(
+               [{0, 1, 1}, {1, 0, 2}],
+               %{{0, 0, 3} => 0, {0, 1, 1} => :infinity, {1, 0, 2} => 3}
+             ) == {1, 0, 2}
+    end
+  end
+
+  describe "violates_three_forward_limit_rule?/3" do
+    test "simple example" do
+      assert violates_three_forward_limit_rule?(
+               {0, 0, 1},
+               {1, 0, 4},
+               %{
+                 {0, 0, 1} => :undefined,
+                 {0, 1, 2} => :undefined,
+                 {0, 2, 3} => :undefined,
+                 {1, 0, 4} => :undefined,
+                 {1, 1, 5} => :undefined,
+                 {1, 2, 6} => :undefined
+               }
+             ) == false
+
+      assert violates_three_forward_limit_rule?(
+               {0, 2, 3},
+               {0, 3, 4},
+               %{
+                 {0, 0, 1} => :undefined,
+                 {0, 1, 2} => {0, 0, 1},
+                 {0, 2, 3} => {0, 1, 2},
+                 {0, 3, 4} => :undefined,
+                 {1, 0, 4} => :undefined,
+                 {1, 1, 5} => :undefined,
+                 {1, 2, 6} => :undefined
+               }
+             ) == false
+
+      assert violates_three_forward_limit_rule?(
+               {0, 3, 4},
+               {0, 4, 5},
+               %{
+                 {0, 0, 1} => :undefined,
+                 {0, 1, 2} => {0, 0, 1},
+                 {0, 2, 3} => {0, 1, 2},
+                 {0, 3, 4} => {0, 2, 3},
+                 {0, 4, 5} => :undefined,
+                 {1, 0, 4} => :undefined,
+                 {1, 1, 5} => :undefined,
+                 {1, 2, 6} => :undefined
+               }
+             ) == true
+
+      assert violates_three_forward_limit_rule?(
+               {0, 3, 4},
+               {0, 4, 5},
+               %{
+                 {0, 0, 1} => :undefined,
+                 {0, 1, 2} => {0, 0, 1},
+                 {0, 2, 3} => {0, 1, 2},
+                 {0, 3, 4} => {1, 3, 10},
+                 {0, 4, 5} => :undefined,
+                 {1, 0, 4} => :undefined,
+                 {1, 1, 5} => :undefined,
+                 {1, 2, 6} => :undefined,
+                 {1, 3, 10} => {2, 3, 11},
+                 {2, 3, 11} => {3, 3, 12}
+               }
+             ) == false
+    end
+  end
 end
 
 ExUnit.run()
 
-:eprof.stop_profiling()
-:eprof.analyze(:total, total: true)
+# :eprof.stop_profiling()
+# :eprof.analyze(:total, total: true)
 
 # :cprof.analyse(PartOne)
 # :cprof.stop()
+
+# """
+#   123
+#   456
+#   """
+
+# 2..34....1323
+# 32....35.5623
+# 32552456...54
+# 3446585845.52
+# 4546657867..6
+# 14385987984.4
+# 44578769877.6
+# 36378779796..
+# 465496798688.
+# 456467998645.
+# 12246868655..
+# 25465488877.5
+# 43226746555..
 ```
 
 ### Solution - Part 1
@@ -847,4 +1132,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":17130,"stamp":{"token":"XCP.mrtdr-63YGIGCsOyPub0oY8ftf5TpLsQE6S63jhCS89HcTILTqvk8jdoYsloxgyqCuYXm61E57zBXuPZs7Cbe7CvmRQHD3WMANpfxDoiRb4D42FGlZI","version":2}} -->
+<!-- livebook:{"offset":25964,"stamp":{"token":"XCP.Hp6yF5RaDzBi-eIM-lflYUg4cWwgYU49ueIfDluTx5RThYuydiJZXdWRqaCUK0CLIhmFaBGmkp37XjK3K778zgAkGzD4ljc5A6n9HDwcz2r2PpgRmIA","version":2}} -->
