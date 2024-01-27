@@ -27,6 +27,21 @@ Mix.install([
 defmodule Parser do
   def parse(input) do
     String.split(input, "\n", trim: true)
+    |> Enum.map(fn line ->
+      String.split(line, "", trim: true) |> Enum.map(fn string -> String.to_integer(string) end)
+    end)
+  end
+
+  def parse_to_hash(input) do
+    String.split(input, "\n", trim: true)
+    |> Enum.with_index()
+    |> Enum.map(fn {line, idx} ->
+      String.split(line, "", trim: true)
+      |> Enum.with_index()
+      |> Enum.map(fn {cell, inner_idx} -> {{idx, inner_idx}, String.to_integer(cell)} end)
+    end)
+    |> List.flatten()
+    |> Map.new()
   end
 end
 ```
@@ -57,24 +72,395 @@ defmodule ParserTest do
   """
 
   @expected [
-    "2413432311323",
-    "3215453535623",
-    "3255245654254",
-    "3446585845452",
-    "4546657867536",
-    "1438598798454",
-    "4457876987766",
-    "3637877979653",
-    "4654967986887",
-    "4564679986453",
-    "1224686865563",
-    "2546548887735",
-    "4322674655533"
+    [2, 4, 1, 3, 4, 3, 2, 3, 1, 1, 3, 2, 3],
+    [3, 2, 1, 5, 4, 5, 3, 5, 3, 5, 6, 2, 3],
+    [3, 2, 5, 5, 2, 4, 5, 6, 5, 4, 2, 5, 4],
+    [3, 4, 4, 6, 5, 8, 5, 8, 4, 5, 4, 5, 2],
+    [4, 5, 4, 6, 6, 5, 7, 8, 6, 7, 5, 3, 6],
+    [1, 4, 3, 8, 5, 9, 8, 7, 9, 8, 4, 5, 4],
+    [4, 4, 5, 7, 8, 7, 6, 9, 8, 7, 7, 6, 6],
+    [3, 6, 3, 7, 8, 7, 7, 9, 7, 9, 6, 5, 3],
+    [4, 6, 5, 4, 9, 6, 7, 9, 8, 6, 8, 8, 7],
+    [4, 5, 6, 4, 6, 7, 9, 9, 8, 6, 4, 5, 3],
+    [1, 2, 2, 4, 6, 8, 6, 8, 6, 5, 5, 6, 3],
+    [2, 5, 4, 6, 5, 4, 8, 8, 8, 7, 7, 3, 5],
+    [4, 3, 2, 2, 6, 7, 4, 6, 5, 5, 5, 3, 3]
   ]
+
+  @expected2 %{
+    0 => %{
+      0 => 2,
+      1 => 4,
+      2 => 1,
+      3 => 3,
+      4 => 4,
+      5 => 3,
+      6 => 2,
+      7 => 3,
+      8 => 1,
+      9 => 1,
+      10 => 3,
+      11 => 2,
+      12 => 3
+    },
+    1 => %{
+      0 => 3,
+      1 => 2,
+      2 => 1,
+      3 => 5,
+      4 => 4,
+      5 => 5,
+      6 => 3,
+      7 => 5,
+      8 => 3,
+      9 => 5,
+      10 => 6,
+      11 => 2,
+      12 => 3
+    },
+    2 => %{
+      0 => 3,
+      1 => 2,
+      2 => 5,
+      3 => 5,
+      4 => 2,
+      5 => 4,
+      6 => 5,
+      7 => 6,
+      8 => 5,
+      9 => 4,
+      10 => 2,
+      11 => 5,
+      12 => 4
+    },
+    3 => %{
+      0 => 3,
+      1 => 4,
+      2 => 4,
+      3 => 6,
+      4 => 5,
+      5 => 8,
+      6 => 5,
+      7 => 8,
+      8 => 4,
+      9 => 5,
+      10 => 4,
+      11 => 5,
+      12 => 2
+    },
+    4 => %{
+      0 => 4,
+      1 => 5,
+      2 => 4,
+      3 => 6,
+      4 => 6,
+      5 => 5,
+      6 => 7,
+      7 => 8,
+      8 => 6,
+      9 => 7,
+      10 => 5,
+      11 => 3,
+      12 => 6
+    },
+    5 => %{
+      0 => 1,
+      1 => 4,
+      2 => 3,
+      3 => 8,
+      4 => 5,
+      5 => 9,
+      6 => 8,
+      7 => 7,
+      8 => 9,
+      9 => 8,
+      10 => 4,
+      11 => 5,
+      12 => 4
+    },
+    6 => %{
+      0 => 4,
+      1 => 4,
+      2 => 5,
+      3 => 7,
+      4 => 8,
+      5 => 7,
+      6 => 6,
+      7 => 9,
+      8 => 8,
+      9 => 7,
+      10 => 7,
+      11 => 6,
+      12 => 6
+    },
+    7 => %{
+      0 => 3,
+      1 => 6,
+      2 => 3,
+      3 => 7,
+      4 => 8,
+      5 => 7,
+      6 => 7,
+      7 => 9,
+      8 => 7,
+      9 => 9,
+      10 => 6,
+      11 => 5,
+      12 => 3
+    },
+    8 => %{
+      0 => 4,
+      1 => 6,
+      2 => 5,
+      3 => 4,
+      4 => 9,
+      5 => 6,
+      6 => 7,
+      7 => 9,
+      8 => 8,
+      9 => 6,
+      10 => 8,
+      11 => 8,
+      12 => 7
+    },
+    9 => %{
+      0 => 4,
+      1 => 5,
+      2 => 6,
+      3 => 4,
+      4 => 6,
+      5 => 7,
+      6 => 9,
+      7 => 9,
+      8 => 8,
+      9 => 6,
+      10 => 4,
+      11 => 5,
+      12 => 3
+    },
+    10 => %{
+      0 => 1,
+      1 => 2,
+      2 => 2,
+      3 => 4,
+      4 => 6,
+      5 => 8,
+      6 => 6,
+      7 => 8,
+      8 => 6,
+      9 => 5,
+      10 => 5,
+      11 => 6,
+      12 => 3
+    },
+    11 => %{
+      0 => 2,
+      1 => 5,
+      2 => 4,
+      3 => 6,
+      4 => 5,
+      5 => 4,
+      6 => 8,
+      7 => 8,
+      8 => 8,
+      9 => 7,
+      10 => 7,
+      11 => 3,
+      12 => 5
+    },
+    12 => %{
+      0 => 4,
+      1 => 3,
+      2 => 2,
+      3 => 2,
+      4 => 6,
+      5 => 7,
+      6 => 4,
+      7 => 6,
+      8 => 5,
+      9 => 5,
+      10 => 5,
+      11 => 3,
+      12 => 3
+    }
+  }
+
+  @expected3 %{
+    {0, 0} => 2,
+    {0, 1} => 4,
+    {0, 2} => 1,
+    {0, 3} => 3,
+    {0, 4} => 4,
+    {0, 5} => 3,
+    {0, 6} => 2,
+    {0, 7} => 3,
+    {0, 8} => 1,
+    {0, 9} => 1,
+    {0, 10} => 3,
+    {0, 11} => 2,
+    {0, 12} => 3,
+    {1, 0} => 3,
+    {1, 1} => 2,
+    {1, 2} => 1,
+    {1, 3} => 5,
+    {1, 4} => 4,
+    {1, 5} => 5,
+    {1, 6} => 3,
+    {1, 7} => 5,
+    {1, 8} => 3,
+    {1, 9} => 5,
+    {1, 10} => 6,
+    {1, 11} => 2,
+    {1, 12} => 3,
+    {2, 0} => 3,
+    {2, 1} => 2,
+    {2, 2} => 5,
+    {2, 3} => 5,
+    {2, 4} => 2,
+    {2, 5} => 4,
+    {2, 6} => 5,
+    {2, 7} => 6,
+    {2, 8} => 5,
+    {2, 9} => 4,
+    {2, 10} => 2,
+    {2, 11} => 5,
+    {2, 12} => 4,
+    {3, 0} => 3,
+    {3, 1} => 4,
+    {3, 2} => 4,
+    {3, 3} => 6,
+    {3, 4} => 5,
+    {3, 5} => 8,
+    {3, 6} => 5,
+    {3, 7} => 8,
+    {3, 8} => 4,
+    {3, 9} => 5,
+    {3, 10} => 4,
+    {3, 11} => 5,
+    {3, 12} => 2,
+    {4, 0} => 4,
+    {4, 1} => 5,
+    {4, 2} => 4,
+    {4, 3} => 6,
+    {4, 4} => 6,
+    {4, 5} => 5,
+    {4, 6} => 7,
+    {4, 7} => 8,
+    {4, 8} => 6,
+    {4, 9} => 7,
+    {4, 10} => 5,
+    {4, 11} => 3,
+    {4, 12} => 6,
+    {5, 0} => 1,
+    {5, 1} => 4,
+    {5, 2} => 3,
+    {5, 3} => 8,
+    {5, 4} => 5,
+    {5, 5} => 9,
+    {5, 6} => 8,
+    {5, 7} => 7,
+    {5, 8} => 9,
+    {5, 9} => 8,
+    {5, 10} => 4,
+    {5, 11} => 5,
+    {5, 12} => 4,
+    {6, 0} => 4,
+    {6, 1} => 4,
+    {6, 2} => 5,
+    {6, 3} => 7,
+    {6, 4} => 8,
+    {6, 5} => 7,
+    {6, 6} => 6,
+    {6, 7} => 9,
+    {6, 8} => 8,
+    {6, 9} => 7,
+    {6, 10} => 7,
+    {6, 11} => 6,
+    {6, 12} => 6,
+    {7, 0} => 3,
+    {7, 1} => 6,
+    {7, 2} => 3,
+    {7, 3} => 7,
+    {7, 4} => 8,
+    {7, 5} => 7,
+    {7, 6} => 7,
+    {7, 7} => 9,
+    {7, 8} => 7,
+    {7, 9} => 9,
+    {7, 10} => 6,
+    {7, 11} => 5,
+    {7, 12} => 3,
+    {8, 0} => 4,
+    {8, 1} => 6,
+    {8, 2} => 5,
+    {8, 3} => 4,
+    {8, 4} => 9,
+    {8, 5} => 6,
+    {8, 6} => 7,
+    {8, 7} => 9,
+    {8, 8} => 8,
+    {8, 9} => 6,
+    {8, 10} => 8,
+    {8, 11} => 8,
+    {8, 12} => 7,
+    {9, 0} => 4,
+    {9, 1} => 5,
+    {9, 2} => 6,
+    {9, 3} => 4,
+    {9, 4} => 6,
+    {9, 5} => 7,
+    {9, 6} => 9,
+    {9, 7} => 9,
+    {9, 8} => 8,
+    {9, 9} => 6,
+    {9, 10} => 4,
+    {9, 11} => 5,
+    {9, 12} => 3,
+    {10, 0} => 1,
+    {10, 1} => 2,
+    {10, 2} => 2,
+    {10, 3} => 4,
+    {10, 4} => 6,
+    {10, 5} => 8,
+    {10, 6} => 6,
+    {10, 7} => 8,
+    {10, 8} => 6,
+    {10, 9} => 5,
+    {10, 10} => 5,
+    {10, 11} => 6,
+    {10, 12} => 3,
+    {11, 0} => 2,
+    {11, 1} => 5,
+    {11, 2} => 4,
+    {11, 3} => 6,
+    {11, 4} => 5,
+    {11, 5} => 4,
+    {11, 6} => 8,
+    {11, 7} => 8,
+    {11, 8} => 8,
+    {11, 9} => 7,
+    {11, 10} => 7,
+    {11, 11} => 3,
+    {11, 12} => 5,
+    {12, 0} => 4,
+    {12, 1} => 3,
+    {12, 2} => 2,
+    {12, 3} => 2,
+    {12, 4} => 6,
+    {12, 5} => 7,
+    {12, 6} => 4,
+    {12, 7} => 6,
+    {12, 8} => 5,
+    {12, 9} => 5,
+    {12, 10} => 5,
+    {12, 11} => 3,
+    {12, 12} => 3
+  }
 
   describe "parse/1" do
     test "simple example" do
       assert parse(@input) == @expected
+      assert parse_to_hash(@input) == @expected3
     end
   end
 end
@@ -95,14 +481,15 @@ defmodule PartOne do
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(tiles_string) when is_bitstring(tiles_string), do: run(Parser.parse(tiles_string))
+  def run(tiles_string) when is_bitstring(tiles_string),
+    do: run(Parser.parse_to_hash(tiles_string))
 
   def run(tiles) do
-    heat_losses =
-      find_traversals(tiles)
-      |> Enum.map(fn trail ->
-        heat_loss(trail)
-      end)
+    heat_losses = find_traversals(tiles)
+    # |> Enum.map(fn trail ->
+    # IO.inspect(trail)
+    # heat_loss(trail)
+    # end)
 
     !Enum.empty?(heat_losses) && Enum.min(heat_losses)
   end
@@ -117,128 +504,151 @@ defmodule PartOne do
   end
 
   def find_traversals(tiles) do
-    # IO.inspect([], label: :HERE1)
     find_traversals(
       tiles,
-      coord_at(tiles, 0, 0),
-      {0, -1, nil},
-      coord_at(tiles, length(tiles) - 1, String.length(hd(tiles)) - 1),
-      MapSet.new()
+      coord_at(tiles, 0, 0, :east),
+      1,
+      coord_at(tiles, number_of_rows(tiles) - 1, number_of_columns(tiles) - 1),
+      %{},
+      0
     )
     |> List.flatten()
-    |> Enum.map(fn %{trail: backwards_trail} -> Enum.reverse(backwards_trail) end)
+    |> Enum.reject(fn val -> val == nil end)
+
+    # |> Enum.map(fn hash -> Map.keys(hash) end)
+    # |> Enum.map(fn %{trail: backwards_trail} -> Enum.reverse(backwards_trail) end)
   end
 
-  defp find_traversals(_, dest, _prev, dest, trail_so_far) do
-    # IO.inspect(trail_so_far, label: :HERE2)
-    # IO.inspect({dest, trail_so_far}, label: :HERE2)
-    # reached destination
-    %{trail: trail_so_far}
-  end
+  # out of bounds since cell is nil
+  defp find_traversals(
+         _,
+         {_row, _col, nil, _direction},
+         _steps_forward,
+         _dest,
+         _trail_so_far,
+         _heat
+       ),
+       do: nil
 
-  defp find_traversals(_, {_row, _col, nil}, _prev, _dest, _trail_so_far) do
-    # IO.inspect(trail_so_far, label: :HERE3)
-    # IO.inspect({{row, col, nil}, trail_so_far}, label: :HERE3)
-    # out of bounds since cell is nil
-    []
-  end
+  # reached destination
+  defp find_traversals(
+         _,
+         {row, col, _cell, _dir},
+         _steps_forward,
+         {row, col, _cell2},
+         _trail_so_far,
+         heat
+       ),
+       do: heat
 
-  defp find_traversals(tiles, current_coord, prev_coord, dest, trail_so_far) do
-    # IO.inspect({current_coord, trail_so_far}, label: :HERE4); 
-    # IO.inspect(trail_so_far, label: :HERE5); 
+  # too many steps forward and haven't landed at dest yet
+  defp find_traversals(_, _curr, 4, _dest, _trail_so_far, _heat), do: nil
 
+  defp find_traversals(
+         tiles,
+         {row, col, cell, dir},
+         steps_forward,
+         dest,
+         trail_so_far,
+         heat_so_far
+       ) do
     # TODO: Is there ever a reason to cross over the same cell?
     #       Is it possible to do a loop in a low-cost path to avoid high-cost cells that goes over same cell?
     #       If so, we need to not just check the current cell, but also the direction (or maybe just previous cell) 
-    if MapSet.member?(trail_so_far, current_coord) do
-      # IO.puts("HERE")
-      []
+    if Map.has_key?(trail_so_far, {row, col}) do
+      nil
     else
-      new_trail_so_far = MapSet.put(trail_so_far, current_coord)
+      new_trail_so_far = Map.put(trail_so_far, {row, col}, 1)
+      new_heat_so_far = heat_so_far + cell
 
       [
         find_traversals(
           tiles,
-          turn_and_move_left(tiles, current_coord, prev_coord),
-          current_coord,
+          turn_and_move_left(tiles, {row, col, cell, dir}),
+          1,
           dest,
-          new_trail_so_far
+          new_trail_so_far,
+          new_heat_so_far
         ),
         find_traversals(
           tiles,
-          move_forward(tiles, current_coord, prev_coord),
-          current_coord,
+          move_forward(tiles, {row, col, cell, dir}),
+          steps_forward + 1,
           dest,
-          new_trail_so_far
+          new_trail_so_far,
+          new_heat_so_far
         ),
         find_traversals(
           tiles,
-          turn_and_move_right(tiles, current_coord, prev_coord),
-          current_coord,
+          turn_and_move_right(tiles, {row, col, cell, dir}),
+          1,
           dest,
-          new_trail_so_far
+          new_trail_so_far,
+          new_heat_so_far
         )
       ]
     end
   end
 
-  def move_forward(tiles, {row, col, _cell}, {row, prev_col, _prev_cell}) when col > prev_col,
-    do: coord_at(tiles, row, col + 1)
+  def move_forward(tiles, {row, col, _cell, :east}), do: coord_at(tiles, row, col + 1, :east)
+  def move_forward(tiles, {row, col, _cell, :west}), do: coord_at(tiles, row, col - 1, :west)
+  def move_forward(tiles, {row, col, _cell, :south}), do: coord_at(tiles, row + 1, col, :south)
+  def move_forward(tiles, {row, col, _cell, :north}), do: coord_at(tiles, row - 1, col, :north)
 
-  def move_forward(tiles, {row, col, _cell}, {row, prev_col, _prev_cell}) when col < prev_col,
-    do: coord_at(tiles, row, col - 1)
+  def turn_and_move_left(tiles, {row, col, _cell, :east}),
+    do: coord_at(tiles, row - 1, col, :north)
 
-  def move_forward(tiles, {row, col, _cell}, {prev_row, col, _prev_cell}) when row > prev_row,
-    do: coord_at(tiles, row + 1, col)
+  def turn_and_move_left(tiles, {row, col, _cell, :west}),
+    do: coord_at(tiles, row + 1, col, :south)
 
-  def move_forward(tiles, {row, col, _cell}, {prev_row, col, _prev_cell}) when row < prev_row,
-    do: coord_at(tiles, row - 1, col)
+  def turn_and_move_left(tiles, {row, col, _cell, :south}),
+    do: coord_at(tiles, row, col + 1, :east)
 
-  def turn_and_move_left(tiles, {row, col, _cell}, {row, prev_col, _prev_cell})
-      when col > prev_col,
-      do: coord_at(tiles, row - 1, col)
+  def turn_and_move_left(tiles, {row, col, _cell, :north}),
+    do: coord_at(tiles, row, col - 1, :west)
 
-  def turn_and_move_left(tiles, {row, col, _cell}, {row, prev_col, _prev_cell})
-      when col < prev_col,
-      do: coord_at(tiles, row + 1, col)
+  def turn_and_move_right(tiles, {row, col, _cell, :east}),
+    do: coord_at(tiles, row + 1, col, :south)
 
-  def turn_and_move_left(tiles, {row, col, _cell}, {prev_row, col, _prev_cell})
-      when row > prev_row,
-      do: coord_at(tiles, row, col + 1)
+  def turn_and_move_right(tiles, {row, col, _cell, :west}),
+    do: coord_at(tiles, row - 1, col, :north)
 
-  def turn_and_move_left(tiles, {row, col, _cell}, {prev_row, col, _prev_cell})
-      when row < prev_row,
-      do: coord_at(tiles, row, col - 1)
+  def turn_and_move_right(tiles, {row, col, _cell, :south}),
+    do: coord_at(tiles, row, col - 1, :west)
 
-  def turn_and_move_right(tiles, {row, col, _cell}, {row, prev_col, _prev_cell})
-      when col > prev_col,
-      do: coord_at(tiles, row + 1, col)
+  def turn_and_move_right(tiles, {row, col, _cell, :north}),
+    do: coord_at(tiles, row, col + 1, :east)
 
-  def turn_and_move_right(tiles, {row, col, _cell}, {row, prev_col, _prev_cell})
-      when col < prev_col,
-      do: coord_at(tiles, row - 1, col)
-
-  def turn_and_move_right(tiles, {row, col, _cell}, {prev_row, col, _prev_cell})
-      when row > prev_row,
-      do: coord_at(tiles, row, col - 1)
-
-  def turn_and_move_right(tiles, {row, col, _cell}, {prev_row, col, _prev_cell})
-      when row < prev_row,
-      do: coord_at(tiles, row, col + 1)
+  def coord_at(tiles, row, column, direction) do
+    {row, column, Map.get(tiles, {row, column}), direction}
+  end
 
   def coord_at(tiles, row, column) do
-    {row, column, cell_at(tiles, row, column)}
+    # {row, column, cell_at(tiles, row, column)}
+    {row, column, Map.get(tiles, {row, column})}
   end
 
   def cell_at(tiles, row, column) do
-    # defend against negative string lookup cycling to end of string
-    if row < 0 || column < 0 do
-      nil
-    else
-      row = tiles |> Enum.at(row)
-      cell = row && String.at(row, column)
-      cell && String.to_integer(cell)
-    end
+    # if row < 0 || column < 0 do # defend against negative string lookup cycling to end of string
+    #   nil
+    # else
+    # row = tiles |> Map.get(row)
+    # row && Map.get(row, column) 
+    # end
+
+    Map.get(tiles, {row, column})
+  end
+
+  defp number_of_rows(tiles) do
+    # Enum.count(tiles)
+    {{row, _column}, _cell} = Enum.max_by(tiles, fn {{row, _column}, _cell} -> row end)
+    row
+  end
+
+  defp number_of_columns(tiles) do
+    # Enum.count(Map.get(tiles, 0))
+    {{_row, column}, _cell} = Enum.max_by(tiles, fn {{_row, column}, _cell} -> column end)
+    column
   end
 end
 ```
@@ -247,6 +657,9 @@ end
 
 ```elixir
 ExUnit.start(autorun: false)
+
+# :cprof.start()
+:eprof.start_profiling([self()])
 
 defmodule PartOneTest do
   use ExUnit.Case, async: true
@@ -269,12 +682,12 @@ defmodule PartOneTest do
   """
 
   @raw_input2 """
-  123
-  456
-  789
+  24134323113
+  32154535356
+  32552456542
   """
 
-  @input Parser.parse(@raw_input)
+  @input Parser.parse_to_hash(@raw_input)
 
   describe "run/1" do
     test "main example" do
@@ -302,6 +715,10 @@ defmodule PartOneTest do
       assert coord_at(@input, 0, 0) == {0, 0, 2}
       assert coord_at(@input, 0, 1) == {0, 1, 4}
       assert coord_at(@input, 1, 0) == {1, 0, 3}
+
+      assert coord_at(@input, 0, 0, :east) == {0, 0, 2, :east}
+      assert coord_at(@input, 0, 1, :east) == {0, 1, 4, :east}
+      assert coord_at(@input, 1, 0, :east) == {1, 0, 3, :east}
     end
   end
 
@@ -315,45 +732,47 @@ defmodule PartOneTest do
 
   describe "move_forward/3" do
     test "basic examples" do
-      assert move_forward(@input, {0, 1, 2}, {0, 0, 2}) == {0, 2, 1}
-      assert move_forward(@input, {0, 1, 2}, {0, 2, 1}) == {0, 0, 2}
-      assert move_forward(@input, {1, 0, 3}, {0, 0, 2}) == {2, 0, 3}
-      assert move_forward(@input, {1, 0, 3}, {2, 0, 3}) == {0, 0, 2}
+      assert move_forward(@input, {0, 1, 2, :east}) == {0, 2, 1, :east}
+      assert move_forward(@input, {0, 1, 2, :west}) == {0, 0, 2, :west}
+      assert move_forward(@input, {1, 0, 3, :south}) == {2, 0, 3, :south}
+      assert move_forward(@input, {1, 0, 3, :north}) == {0, 0, 2, :north}
     end
   end
 
   describe "turn_and_move_left/3" do
     test "basic examples" do
       # going east: turn north
-      assert turn_and_move_left(@input, {0, 1, 2}, {0, 0, 2}) == {-1, 1, nil}
+      assert turn_and_move_left(@input, {0, 1, 2, :east}) == {-1, 1, nil, :north}
       # going west: turn south
-      assert turn_and_move_left(@input, {0, 1, 2}, {0, 2, 1}) == {1, 1, 2}
+      assert turn_and_move_left(@input, {0, 1, 2, :west}) == {1, 1, 2, :south}
       # going south: turn east
-      assert turn_and_move_left(@input, {1, 0, 3}, {0, 0, 2}) == {1, 1, 2}
+      assert turn_and_move_left(@input, {1, 0, 3, :south}) == {1, 1, 2, :east}
       # going north: turn west
-      assert turn_and_move_left(@input, {1, 0, 3}, {2, 0, 3}) == {1, -1, nil}
+      assert turn_and_move_left(@input, {1, 0, 3, :north}) == {1, -1, nil, :west}
     end
   end
 
-  describe "turn_and_move_rigteeeh/3" do
+  describe "turn_and_move_right/3" do
     test "basic examples" do
       # going east: turn south
-      assert turn_and_move_right(@input, {0, 1, 2}, {0, 0, 2}) == {1, 1, 2}
+      assert turn_and_move_right(@input, {0, 1, 2, :east}) == {1, 1, 2, :south}
       # going west: turn north
-      assert turn_and_move_right(@input, {0, 1, 2}, {0, 2, 1}) == {-1, 1, nil}
+      assert turn_and_move_right(@input, {0, 1, 2, :west}) == {-1, 1, nil, :north}
       # going south: turn west
-      assert turn_and_move_right(@input, {1, 0, 3}, {0, 0, 2}) == {1, -1, nil}
+      assert turn_and_move_right(@input, {1, 0, 3, :south}) == {1, -1, nil, :west}
       # going north: turn east
-      assert turn_and_move_right(@input, {1, 0, 3}, {2, 0, 3}) == {1, 1, 2}
+      assert turn_and_move_right(@input, {1, 0, 3, :north}) == {1, 1, 2, :east}
     end
   end
 end
 
 ExUnit.run()
 
-# 123 
-# 456 
-# 789 
+:eprof.stop_profiling()
+:eprof.analyze(:total, total: true)
+
+# :cprof.analyse(PartOne)
+# :cprof.stop()
 ```
 
 ### Solution - Part 1
@@ -428,4 +847,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":10021,"stamp":{"token":"XCP.uTGcY2Tl-kPUk-Jsn7lb98wKf5qZQ6izixLDZOJcWQoqqsJst8yf09cHi0W5lnbbsTe4mIRtxXMa9rl-iQlIjBqjLjEcNPvIjydLG6UO3lN0bg7wscA","version":2}} -->
+<!-- livebook:{"offset":17130,"stamp":{"token":"XCP.mrtdr-63YGIGCsOyPub0oY8ftf5TpLsQE6S63jhCS89HcTILTqvk8jdoYsloxgyqCuYXm61E57zBXuPZs7Cbe7CvmRQHD3WMANpfxDoiRb4D42FGlZI","version":2}} -->
