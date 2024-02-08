@@ -484,16 +484,6 @@ defmodule PartOne do
   def run(tiles_string) when is_bitstring(tiles_string),
     do: run(Parser.parse_to_hash(tiles_string))
 
-  def run_old(tiles) do
-    heat_losses = find_traversals(tiles)
-    # |> Enum.map(fn trail ->
-    # IO.inspect(trail)
-    # heat_loss(trail)
-    # end)
-
-    !Enum.empty?(heat_losses) && Enum.min(heat_losses)
-  end
-
   def run(tiles) do
     # use dijkstra's algorithm, or A* 
     vertices = tiles |> Enum.map(fn {{row, col}, cell} -> {row, col, cell} end)
@@ -562,15 +552,13 @@ defmodule PartOne do
 
     u = vertex_in_q_with_min_dist(q, dist)
     q = List.delete(q, u)
-    IO.inspect(u, label: :u)
+    IO.inspect(%{u: u, dist_u: Map.get(dist, u)})
 
     # IO.inspect(neighbours_of_u_still_in_q(tiles, q, u), label: :neighbours_of_u_still_in_q)
 
     {dist, prev} =
       Enum.reduce(neighbours_of_u_still_in_q(tiles, q, u), {dist, prev}, fn v, {dist, prev} ->
         # IO.inspect({v, {dist, prev}}, label: :reduce_over_neighbours_in_q)
-        IO.inspect(v, label: :v)
-        IO.inspect({Map.get(dist, u), edge(u, v)}, label: :dist_u_and_edge_u_v)
 
         alt =
           if :infinity in [Map.get(dist, u), edge(u, v)] do
@@ -580,7 +568,16 @@ defmodule PartOne do
           end
 
         v_dist = Map.get(dist, v)
-        IO.inspect({alt, v_dist, Map.get(prev, u)}, label: :alt_and_v_dist_and_prevu)
+
+        IO.inspect(%{
+          v: v,
+          dist_u: Map.get(dist, u),
+          edge_u_v: edge(u, v),
+          alt: alt,
+          dist_v: v_dist
+        })
+
+        # IO.inspect({alt, v_dist, Map.get(prev, u)}, label: :alt_and_v_dist_and_prevu)
 
         # IO.inspect(alt != :infinity && (v_dist == :infinity || alt < v_dist), label: :regular_condition_succ)
         # IO.inspect(!violates_three_forward_limit_rule?(u, v, prev), label: :three_forward_limit_succ)
@@ -615,6 +612,7 @@ defmodule PartOne do
 
     steps = [prev_coordx3, prev_coordx2, prev_coord, current_coord, potential_next_coord]
 
+    # IO.inspect(steps, label: :check_if_any_of_these_are_nil_or_undefined)
     # IO.inspect({steps, !Enum.any?(steps, fn v -> v in [nil, :undefined] end) && all_straight?(steps)}, label: :determining_forward_limit)
     !Enum.any?(steps, fn v -> v in [nil, :undefined] end) && all_straight?(steps)
     # && straight?(prev_coord, current_coord)
@@ -677,104 +675,6 @@ defmodule PartOne do
     tl(trail)
   end
 
-  def find_traversals(tiles) do
-    find_traversals(
-      tiles,
-      coord_at(tiles, 0, 0, :east),
-      1,
-      coord_at(tiles, number_of_rows(tiles) - 1, number_of_columns(tiles) - 1),
-      %{},
-      0
-    )
-    |> List.flatten()
-    |> Enum.reject(fn val -> val == nil end)
-
-    # |> Enum.map(fn hash -> Map.keys(hash) end)
-    # |> Enum.map(fn %{trail: backwards_trail} -> Enum.reverse(backwards_trail) end)
-  end
-
-  # out of bounds since cell is nil
-  defp find_traversals(_, {_, _, nil, _}, _, _, _, _), do: nil
-  # reached destination
-  defp find_traversals(_, {row, col, _, _}, _, {row, col, _}, _, heat), do: heat
-  # too many steps forward and haven't landed at dest yet
-  defp find_traversals(_, _, 4, _, _, _), do: nil
-
-  defp find_traversals(
-         tiles,
-         {row, col, cell, dir},
-         steps_forward,
-         dest,
-         trail_so_far,
-         heat_so_far
-       ) do
-    # TODO: Is there ever a reason to cross over the same cell?
-    #       Is it possible to do a loop in a low-cost path to avoid high-cost cells that goes over same cell?
-    #       If so, we need to not just check the current cell, but also the direction (or maybe just previous cell) 
-    if Map.has_key?(trail_so_far, {row, col}) do
-      nil
-    else
-      new_trail_so_far = Map.put(trail_so_far, {row, col}, 1)
-      new_heat_so_far = heat_so_far + cell
-
-      [
-        find_traversals(
-          tiles,
-          turn_and_move_left(tiles, {row, col, cell, dir}),
-          1,
-          dest,
-          new_trail_so_far,
-          new_heat_so_far
-        ),
-        find_traversals(
-          tiles,
-          move_forward(tiles, {row, col, cell, dir}),
-          steps_forward + 1,
-          dest,
-          new_trail_so_far,
-          new_heat_so_far
-        ),
-        find_traversals(
-          tiles,
-          turn_and_move_right(tiles, {row, col, cell, dir}),
-          1,
-          dest,
-          new_trail_so_far,
-          new_heat_so_far
-        )
-      ]
-    end
-  end
-
-  def move_forward(tiles, {row, col, _cell, :east}), do: coord_at(tiles, row, col + 1, :east)
-  def move_forward(tiles, {row, col, _cell, :west}), do: coord_at(tiles, row, col - 1, :west)
-  def move_forward(tiles, {row, col, _cell, :south}), do: coord_at(tiles, row + 1, col, :south)
-  def move_forward(tiles, {row, col, _cell, :north}), do: coord_at(tiles, row - 1, col, :north)
-
-  def turn_and_move_left(tiles, {row, col, _cell, :east}),
-    do: coord_at(tiles, row - 1, col, :north)
-
-  def turn_and_move_left(tiles, {row, col, _cell, :west}),
-    do: coord_at(tiles, row + 1, col, :south)
-
-  def turn_and_move_left(tiles, {row, col, _cell, :south}),
-    do: coord_at(tiles, row, col + 1, :east)
-
-  def turn_and_move_left(tiles, {row, col, _cell, :north}),
-    do: coord_at(tiles, row, col - 1, :west)
-
-  def turn_and_move_right(tiles, {row, col, _cell, :east}),
-    do: coord_at(tiles, row + 1, col, :south)
-
-  def turn_and_move_right(tiles, {row, col, _cell, :west}),
-    do: coord_at(tiles, row - 1, col, :north)
-
-  def turn_and_move_right(tiles, {row, col, _cell, :south}),
-    do: coord_at(tiles, row, col - 1, :west)
-
-  def turn_and_move_right(tiles, {row, col, _cell, :north}),
-    do: coord_at(tiles, row, col + 1, :east)
-
   def coord_at(tiles, row, column, direction) do
     {row, column, Map.get(tiles, {row, column}), direction}
   end
@@ -814,9 +714,6 @@ end
 ```elixir
 ExUnit.start(autorun: false)
 
-# :cprof.start()
-# :eprof.start_profiling([self()])
-
 defmodule PartOneTest do
   use ExUnit.Case, async: true
   import PartOne
@@ -830,6 +727,11 @@ defmodule PartOneTest do
   1438598798454
   4457876987766
   3637877979653
+  4654967986887
+  4564679986453
+  1224686865563
+  2546548887735
+  4322674655533
   """
 
   # 2..34....1323
@@ -846,35 +748,10 @@ defmodule PartOneTest do
   # 25465488877.5
   # 43226746555..
 
-  # 4 + 1 + 1 +
-  # 5 + 4 + 5 +
-  # 3 + 2 + 3 + 1 +
-  # 3 +
-  # 5 +
-  # 4 + 2 +
-  # 4 +
-  # 5 + 3 +
-  # 5 +
-  # 6 +
-  # 5 +
-  # 3 +
-  # 7 +
-  # 3 +
-  # 3 +
-  # 6 +
-  # 3 +
-  # 3 +
-  # 3 
-
   @raw_input2 """
   123
   456
   """
-
-  # 4+5+6
-  # 4+5+2+3+6
-  # 2+5+6
-  # 2+3+6
 
   @input Parser.parse_to_hash(@raw_input)
 
@@ -916,41 +793,6 @@ defmodule PartOneTest do
       assert heat_loss([{0, 0, 2}, {0, 1, 4}]) == 4
       assert heat_loss([{0, 0, 2}, {1, 0, 3}]) == 3
       assert heat_loss([{0, 0, 2}, {0, 1, 4}, {1, 1, 2}]) == 6
-    end
-  end
-
-  describe "move_forward/3" do
-    test "basic examples" do
-      assert move_forward(@input, {0, 1, 2, :east}) == {0, 2, 1, :east}
-      assert move_forward(@input, {0, 1, 2, :west}) == {0, 0, 2, :west}
-      assert move_forward(@input, {1, 0, 3, :south}) == {2, 0, 3, :south}
-      assert move_forward(@input, {1, 0, 3, :north}) == {0, 0, 2, :north}
-    end
-  end
-
-  describe "turn_and_move_left/3" do
-    test "basic examples" do
-      # going east: turn north
-      assert turn_and_move_left(@input, {0, 1, 2, :east}) == {-1, 1, nil, :north}
-      # going west: turn south
-      assert turn_and_move_left(@input, {0, 1, 2, :west}) == {1, 1, 2, :south}
-      # going south: turn east
-      assert turn_and_move_left(@input, {1, 0, 3, :south}) == {1, 1, 2, :east}
-      # going north: turn west
-      assert turn_and_move_left(@input, {1, 0, 3, :north}) == {1, -1, nil, :west}
-    end
-  end
-
-  describe "turn_and_move_right/3" do
-    test "basic examples" do
-      # going east: turn south
-      assert turn_and_move_right(@input, {0, 1, 2, :east}) == {1, 1, 2, :south}
-      # going west: turn north
-      assert turn_and_move_right(@input, {0, 1, 2, :west}) == {-1, 1, nil, :north}
-      # going south: turn west
-      assert turn_and_move_right(@input, {1, 0, 3, :south}) == {1, -1, nil, :west}
-      # going north: turn east
-      assert turn_and_move_right(@input, {1, 0, 3, :north}) == {1, 1, 2, :east}
     end
   end
 
@@ -1033,31 +875,6 @@ defmodule PartOneTest do
 end
 
 ExUnit.run()
-
-# :eprof.stop_profiling()
-# :eprof.analyze(:total, total: true)
-
-# :cprof.analyse(PartOne)
-# :cprof.stop()
-
-# """
-#   123
-#   456
-#   """
-
-# 2..34....1323
-# 32....35.5623
-# 32552456...54
-# 3446585845.52
-# 4546657867..6
-# 14385987984.4
-# 44578769877.6
-# 36378779796..
-# 465496798688.
-# 456467998645.
-# 12246868655..
-# 25465488877.5
-# 43226746555..
 ```
 
 ### Solution - Part 1
@@ -1132,4 +949,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":25964,"stamp":{"token":"XCP.Hp6yF5RaDzBi-eIM-lflYUg4cWwgYU49ueIfDluTx5RThYuydiJZXdWRqaCUK0CLIhmFaBGmkp37XjK3K778zgAkGzD4ljc5A6n9HDwcz2r2PpgRmIA","version":2}} -->
+<!-- livebook:{"offset":20686,"stamp":{"token":"XCP.i7oHoLRXeThn2Xe6NHtH2T0bnqSknr6N98FWc7swKvQL4qAGWsRWErsS-vOJvOSSw55xbGs8ZF8CuV4rv9knI_6ysJ40c-kk0VL4aVn4oNikOGD-afQ","version":2}} -->
