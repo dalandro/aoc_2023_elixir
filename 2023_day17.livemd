@@ -2,7 +2,8 @@
 
 ```elixir
 Mix.install([
-  {:kino_aoc, "~> 0.1"}
+  {:kino_aoc, "~> 0.1"},
+  {:heap, "~> 3.0.0"}
 ])
 ```
 
@@ -569,7 +570,17 @@ defmodule PartOne do
     # The set of discovered nodes that may need to be (re-)expanded.
     # Initially, only the start node is known.
     # This is usually implemented as a min-heap or priority queue rather than a hash-set.
-    open_set = MapSet.new([start])
+    # open_set = MapSet.new([start])
+    open_set = [start]
+    # open_set = Heap.min() |> Heap.push(start)
+    # open_set = Heap.new(fn node1, node2 ->
+
+    #   node1_score = Score.get(score_data, node1)
+    #   node2_score = Score.get(score_data, node2)
+
+    #   node1_score != :infinity && (node2_score == :infinity || node1_score < node2_score)
+    # end)
+    # |> Heap.push(start)
 
     # For node n, came_from[n] is the node immediately preceding it on the cheapest path from the start
     # to n currently known.
@@ -583,6 +594,7 @@ defmodule PartOne do
     # how cheap a path could be from start to finish if it goes through n.
     f_score = Score.new()
     f_score = Score.put(f_score, start, h.(start))
+    # f_score = Heap.min() |> Heap.push({h.(start), start})
 
     a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score)
   end
@@ -595,7 +607,9 @@ defmodule PartOne do
       if coords_equal?(current, goal) do
         reconstruct_path(came_from, current)
       else
-        open_set = MapSet.delete(open_set, current)
+        # open_set = MapSet.delete(open_set, current)
+        open_set = List.delete(open_set, current)
+        # open_set = Heap.pop(open_set)
 
         {came_from, g_score, f_score, open_set} =
           Enum.reduce(
@@ -612,10 +626,12 @@ defmodule PartOne do
                 came_from = Map.put(came_from, neighbor, current)
                 g_score = Score.put(g_score, neighbor, tentative_g_score)
                 f_score = Score.put(f_score, neighbor, tentative_g_score + h.(neighbor))
-
+                # f_score = Heap.push(f_score, {tentative_g_score + h.(neighbor), neighbor})
                 open_set =
                   if neighbor not in open_set do
-                    MapSet.put(open_set, neighbor)
+                    # MapSet.put(open_set, neighbor)
+                    [neighbor | open_set]
+                    # open_set = Heap.push(open_set, neighbor)
                   else
                     open_set
                   end
@@ -640,15 +656,19 @@ defmodule PartOne do
   defp coords_equal?(node1, node2), do: node1 == node2
 
   defp node_with_lowest_score(set, score_data) do
-    Enum.min_by(set, fn node ->
-      node_score = Score.get(score_data, node)
+    # Enum.min_by(score_data, fn {_k, v} -> 
+    #   if v 
+    # end)
+    # |> elem(0)
 
-      if node_score == :infinity do
-        1_000_000_000
-      else
-        node_score
-      end
+    Enum.min_by(set, fn node ->
+      Score.get(score_data, node)
     end)
+
+    # Enum.find(score_data, fn {_score, node} ->
+    #   node in set
+    # end) |> elem(1)
+    # Heap.root(set)
   end
 
   defp neighbors_of_current(tiles, {current_x, current_y, current_cost}),
@@ -761,6 +781,33 @@ defmodule PartOneTest do
   import PartOne
 
   @raw_input """
+  2413432311323575092357123571320572375612935612351236571235016562157921561325012
+  3215453535623575092357123571320572375612935612351236571235016562157921561325012
+  3255245654254575092357123571320572375612935612351236571235016562157921561325012
+  3446585845452575092357123571320572375612935612351236571235016562157921561325012
+  4546657867536575092357123571320572375612935612351236571235016562157921561325012
+  1438598798454575092357123571320572375612935612351236571235016562157921561325012
+  4457876987766575092357123571320572375612935612351236571235016562157921561325012
+  3637877979653575092357123571320572375612935612351236571235016562157921561325012
+  4654967986887575092357123571320572375612935612351236571235016562157921561325012
+  4564679986453575092357123571320572375612935612351236571235016562157921561325012
+  1224686865563575092357123571320572375612935612351236571235016562157921561325012
+  2546548887735575092357123571320572375612935612351236571235016562157921561325012
+  4322674655533575092357123571320572375612935612351236571235016562157921561325012
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  """
+
+  @raw_input """
   2413432311323
   3215453535623
   3255245654254
@@ -810,14 +857,19 @@ defmodule PartOneTest do
   end
 end
 
+:eprof.start_profiling([self()])
+
 ExUnit.run()
+
+:eprof.stop_profiling()
+IO.inspect(:eprof.analyze(:total))
 ```
 
 ### Solution - Part 1
 
 ```elixir
 PartOne.solve(puzzle_input)
-# puzzle_input |> String.split("\n", trim: true)
+# puzzle_input |> String.split("\n", trim: true) |> Enum.map(fn v -> IO.puts(v) end)
 
 # IO.puts("你好")
 ```
@@ -888,4 +940,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":19289,"stamp":{"token":"XCP.elzA7zeyxPNzcm-OZAx5dK--Z4Qn16r7H0WWCRap_pAKqk7w_S5NFpd5NJLMdlunr-YVjvCIZkoqcRZ0PdzSb6wWwJ7b3QxEXnMk1uzIkSA8S2-uOOM","version":2}} -->
+<!-- livebook:{"offset":22227,"stamp":{"token":"XCP.1DLute84U_ODYX45Pxd2rhcwV8BJreaxxoqj3t4_2oan8VKsPZDq1QzCe_t-yA3-we82q5mwlb8lf0euwTXg1ppB9fuy9ZUe1RaeIT6Vjc10DelxsHU","version":2}} -->
