@@ -495,9 +495,13 @@ defmodule PartOne do
 
     print_output(tiles, result_path)
 
-    result_path
-    |> Enum.map(fn result_entry ->
-      case result_entry do
+    cost_of_path(result_path)
+  end
+
+  defp cost_of_path(path) do
+    path
+    |> Enum.map(fn node ->
+      case node do
         {_, _, cell} -> cell
         {_, _, cell, _, _} -> cell
       end
@@ -545,7 +549,11 @@ defmodule PartOne do
 
   defmodule Score do
     def new, do: %{}
+    def get_generic(score, {v1, v2, v3, _v4, _v5}), do: get(score, {v1, v2, v3})
+    def get_generic(score, {v1, v2, v3}), do: get(score, {v1, v2, v3})
     def get(score, node), do: Map.get(score, node, :infinity)
+    def put_generic(score, {v1, v2, v3, _v4, _v5}, value), do: put(score, {v1, v2, v3}, value)
+    def put_generic(score, {v1, v2, v3}, value), do: put(score, {v1, v2, v3}, value)
     def put(score, node, value), do: Map.put(score, node, value)
   end
 
@@ -570,17 +578,8 @@ defmodule PartOne do
     # The set of discovered nodes that may need to be (re-)expanded.
     # Initially, only the start node is known.
     # This is usually implemented as a min-heap or priority queue rather than a hash-set.
-    # open_set = MapSet.new([start])
-    open_set = [start]
-    # open_set = Heap.min() |> Heap.push(start)
-    # open_set = Heap.new(fn node1, node2 ->
-
-    #   node1_score = Score.get(score_data, node1)
-    #   node2_score = Score.get(score_data, node2)
-
-    #   node1_score != :infinity && (node2_score == :infinity || node1_score < node2_score)
-    # end)
-    # |> Heap.push(start)
+    # open_set = [start]
+    open_set = MapSet.new([start])
 
     # For node n, came_from[n] is the node immediately preceding it on the cheapest path from the start
     # to n currently known.
@@ -594,22 +593,34 @@ defmodule PartOne do
     # how cheap a path could be from start to finish if it goes through n.
     f_score = Score.new()
     f_score = Score.put(f_score, start, h.(start))
-    # f_score = Heap.min() |> Heap.push({h.(start), start})
 
-    a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score)
+    a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score, nil)
   end
 
-  defp a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score) do
+  defp a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score, result) do
     if !Enum.empty?(open_set) do
       # This operation can occur in O(Log(N)) time if openSet is a min-heap or a priority queue
       current = node_with_lowest_score(open_set, f_score)
 
       if coords_equal?(current, goal) do
-        reconstruct_path(came_from, current)
+        reconstructed_path = reconstruct_path(came_from, current)
+        cost_of_path = cost_of_path(reconstructed_path)
+        # print_output(tiles, reconstructed_path)
+        IO.inspect(%{cost_of_path: cost_of_path, compared_to_previous: result && elem(result, 1)})
+
+        result =
+          if !result || cost_of_path < elem(result, 1) do
+            {reconstructed_path, cost_of_path}
+          else
+            result
+          end
+
+        # open_set = List.delete(open_set, current)
+        open_set = MapSet.delete(open_set, current)
+        a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score, result)
       else
-        # open_set = MapSet.delete(open_set, current)
-        open_set = List.delete(open_set, current)
-        # open_set = Heap.pop(open_set)
+        # open_set = List.delete(open_set, current)
+        open_set = MapSet.delete(open_set, current)
 
         {came_from, g_score, f_score, open_set} =
           Enum.reduce(
@@ -626,15 +637,12 @@ defmodule PartOne do
                 came_from = Map.put(came_from, neighbor, current)
                 g_score = Score.put(g_score, neighbor, tentative_g_score)
                 f_score = Score.put(f_score, neighbor, tentative_g_score + h.(neighbor))
-                # f_score = Heap.push(f_score, {tentative_g_score + h.(neighbor), neighbor})
-                open_set =
-                  if neighbor not in open_set do
-                    # MapSet.put(open_set, neighbor)
-                    [neighbor | open_set]
-                    # open_set = Heap.push(open_set, neighbor)
-                  else
-                    open_set
-                  end
+                # open_set = if neighbor not in open_set do
+                #   [neighbor | open_set]
+                # else
+                #   open_set
+                # end
+                open_set = MapSet.put(open_set, neighbor)
 
                 {came_from, g_score, f_score, open_set}
               else
@@ -643,11 +651,15 @@ defmodule PartOne do
             end
           )
 
-        a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score)
+        a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score, result)
       end
     else
-      # Open set is empty but goal was never reached
-      {:error, "Open set is empty but goal was never reached"}
+      if result do
+        elem(result, 0)
+      else
+        # Open set is empty but goal was never reached
+        {:error, "Open set is empty but goal was never reached"}
+      end
     end
   end
 
@@ -656,19 +668,10 @@ defmodule PartOne do
   defp coords_equal?(node1, node2), do: node1 == node2
 
   defp node_with_lowest_score(set, score_data) do
-    # Enum.min_by(score_data, fn {_k, v} -> 
-    #   if v 
-    # end)
-    # |> elem(0)
-
     Enum.min_by(set, fn node ->
-      Score.get(score_data, node)
+      score = Score.get(score_data, node)
+      if score == :infinity, do: 99999, else: score
     end)
-
-    # Enum.find(score_data, fn {_score, node} ->
-    #   node in set
-    # end) |> elem(1)
-    # Heap.root(set)
   end
 
   defp neighbors_of_current(tiles, {current_x, current_y, current_cost}),
@@ -807,21 +810,29 @@ defmodule PartOneTest do
   4791235915976235923659231593125613259312596235921369562395692365632532165982315
   """
 
-  @raw_input """
-  2413432311323
-  3215453535623
-  3255245654254
-  3446585845452
-  4546657867536
-  1438598798454
-  4457876987766
-  3637877979653
-  4654967986887
-  4564679986453
-  1224686865563
-  2546548887735
-  4322674655533
-  """
+  # @raw_input """
+  # 2413432311323
+  # 3215453535623
+  # 3255245654254
+  # 3446585845452
+  # 4546657867536
+  # 1438598798454
+  # 4457876987766
+  # 3637877979653
+  # 4654967986887
+  # 4564679986453
+  # 1224686865563
+  # 2546548887735
+  # 4322674655533
+  # """
+
+  # @raw_input """
+  # 1111111111111
+  # 4564679986451
+  # 1224686865563
+  # 2546548887735
+  # 4322674655533
+  # """
 
   @raw_input2 """
   123
@@ -863,15 +874,53 @@ ExUnit.run()
 
 :eprof.stop_profiling()
 IO.inspect(:eprof.analyze(:total))
+
+# 2>>34^>>>1323
+# 32v>>>35v5623
+# 32552456v>>54
+# 3446585845v52
+# 4546657867v>6
+# 14385987984v4
+# 44578769877v6
+# 36378779796v>
+# 465496798688v
+# 456467998645v
+# 12246868655<v
+# 25465488877v5
+# 43226746555v>
 ```
 
 ### Solution - Part 1
 
 ```elixir
 PartOne.solve(puzzle_input)
-# puzzle_input |> String.split("\n", trim: true) |> Enum.map(fn v -> IO.puts(v) end)
+# reduced_puzzle_input = puzzle_input 
+# |> String.split("\n", trim: true) #|> Enum.map(fn v -> IO.puts(v); v end)
+# reduced_puzzle_input = reduced_puzzle_input |> Enum.slice(0..(Enum.count(reduced_puzzle_input) |> div(2)))
+# |> Enum.map(fn string -> String.slice(string, 0..(String.length(string) |> div(2))) end)
+# |> Enum.map(fn v -> IO.puts(v); v end)
+# |> Enum.join("\n")
+# PartOne.solve(reduced_puzzle_input)
 
-# IO.puts("你好")
+# quartered takes 11.3 seconds - 515
+# 3/4 each dimension takes 35 seconds
+# full takes 91 seconds
+# |> List.first() |> String.length()
+
+# 141 rows, 141 columns
+# 141 * 141
+# 19881
+# 13 * 13
+# 169
+# (19881 / 169) * 0.02
+
+# current output: 908 - too high
+
+
+
+ 123
+.   
+ 456
 ```
 
 <!-- livebook:{"branch_parent_index":2} -->
@@ -940,4 +989,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":22227,"stamp":{"token":"XCP.1DLute84U_ODYX45Pxd2rhcwV8BJreaxxoqj3t4_2oan8VKsPZDq1QzCe_t-yA3-we82q5mwlb8lf0euwTXg1ppB9fuy9ZUe1RaeIT6Vjc10DelxsHU","version":2}} -->
+<!-- livebook:{"offset":23481,"stamp":{"token":"XCP.1AM1p4Z1hb2wQC_3qFPiqXy4umLbD1E1HtrBOotiT2IYHcXb7A0w6shAm-gGF-DBf7dDqL-yAHD-4MnkXM2AfIMN_zqka8xoSkbbzDc5dpQT7b_vqRw","version":2}} -->
