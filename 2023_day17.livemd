@@ -575,12 +575,6 @@ defmodule PartOne do
   # This is a modified version that considers nodes with vectors of 
   # direction of steps in said direction so far.
   defp a_star(tiles, start, goal, h) do
-    # The set of discovered nodes that may need to be (re-)expanded.
-    # Initially, only the start node is known.
-    # This is usually implemented as a min-heap or priority queue rather than a hash-set.
-    # open_set = [start]
-    open_set = MapSet.new([start])
-
     # For node n, came_from[n] is the node immediately preceding it on the cheapest path from the start
     # to n currently known.
     came_from = %{}
@@ -589,18 +583,23 @@ defmodule PartOne do
     g_score = Score.new()
     g_score = Score.put(g_score, start, 0)
 
+    # The set of discovered nodes that may need to be (re-)expanded.
+    # Initially, only the start node is known.
+    # This is usually implemented as a min-heap or priority queue rather than a hash-set.
+    open_set = Heap.min()
+
     # For node n, f_score[n] := g_score[n] + h(n). f_score[n] represents our current best guess as to
     # how cheap a path could be from start to finish if it goes through n.
-    f_score = Score.new()
-    f_score = Score.put(f_score, start, h.(start))
+    initial_f_score_value = h.(start)
+    open_set = Heap.push(open_set, {initial_f_score_value, start})
 
-    a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score, nil)
+    a_star(tiles, start, goal, h, open_set, came_from, g_score, nil)
   end
 
-  defp a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score, result) do
+  defp a_star(tiles, start, goal, h, open_set, came_from, g_score, result) do
     if !Enum.empty?(open_set) do
       # This operation can occur in O(Log(N)) time if openSet is a min-heap or a priority queue
-      current = node_with_lowest_score(open_set, f_score)
+      current = node_with_lowest_score(open_set)
 
       if coords_equal?(current, goal) do
         reconstructed_path = reconstruct_path(came_from, current)
@@ -615,18 +614,16 @@ defmodule PartOne do
             result
           end
 
-        # open_set = List.delete(open_set, current)
-        open_set = MapSet.delete(open_set, current)
-        a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score, result)
+        open_set = Heap.pop(open_set)
+        a_star(tiles, start, goal, h, open_set, came_from, g_score, result)
       else
-        # open_set = List.delete(open_set, current)
-        open_set = MapSet.delete(open_set, current)
+        open_set = Heap.pop(open_set)
 
-        {came_from, g_score, f_score, open_set} =
+        {came_from, g_score, open_set} =
           Enum.reduce(
             neighbors_of_current(tiles, current),
-            {came_from, g_score, f_score, open_set},
-            fn neighbor, {came_from, g_score, f_score, open_set} ->
+            {came_from, g_score, open_set},
+            fn neighbor, {came_from, g_score, open_set} ->
               # d(current,neighbor) is the weight of the edge from current to neighbor
               # tentative_g_score is the distance from start to the neighbor through current
               tentative_g_score = Score.get(g_score, current) + d(current, neighbor)
@@ -636,22 +633,17 @@ defmodule PartOne do
                 # This path to neighbor is better than any previous one. Record it!
                 came_from = Map.put(came_from, neighbor, current)
                 g_score = Score.put(g_score, neighbor, tentative_g_score)
-                f_score = Score.put(f_score, neighbor, tentative_g_score + h.(neighbor))
-                # open_set = if neighbor not in open_set do
-                #   [neighbor | open_set]
-                # else
-                #   open_set
-                # end
-                open_set = MapSet.put(open_set, neighbor)
+                f_score_value = tentative_g_score + h.(neighbor)
+                open_set = Heap.push(open_set, {f_score_value, neighbor})
 
-                {came_from, g_score, f_score, open_set}
+                {came_from, g_score, open_set}
               else
-                {came_from, g_score, f_score, open_set}
+                {came_from, g_score, open_set}
               end
             end
           )
 
-        a_star(tiles, start, goal, h, open_set, came_from, g_score, f_score, result)
+        a_star(tiles, start, goal, h, open_set, came_from, g_score, result)
       end
     else
       if result do
@@ -667,11 +659,8 @@ defmodule PartOne do
   defp coords_equal?(node1, {v1, v2, v3, _v4, _v5}), do: coords_equal?(node1, {v1, v2, v3})
   defp coords_equal?(node1, node2), do: node1 == node2
 
-  defp node_with_lowest_score(set, score_data) do
-    Enum.min_by(set, fn node ->
-      score = Score.get(score_data, node)
-      if score == :infinity, do: 99999, else: score
-    end)
+  defp node_with_lowest_score(set) do
+    Heap.root(set) |> elem(1)
   end
 
   defp neighbors_of_current(tiles, {current_x, current_y, current_cost}),
@@ -784,47 +773,47 @@ defmodule PartOneTest do
   import PartOne
 
   @raw_input """
-  2413432311323575092357123571320572375612935612351236571235016562157921561325012
-  3215453535623575092357123571320572375612935612351236571235016562157921561325012
-  3255245654254575092357123571320572375612935612351236571235016562157921561325012
-  3446585845452575092357123571320572375612935612351236571235016562157921561325012
-  4546657867536575092357123571320572375612935612351236571235016562157921561325012
-  1438598798454575092357123571320572375612935612351236571235016562157921561325012
-  4457876987766575092357123571320572375612935612351236571235016562157921561325012
-  3637877979653575092357123571320572375612935612351236571235016562157921561325012
-  4654967986887575092357123571320572375612935612351236571235016562157921561325012
-  4564679986453575092357123571320572375612935612351236571235016562157921561325012
-  1224686865563575092357123571320572375612935612351236571235016562157921561325012
-  2546548887735575092357123571320572375612935612351236571235016562157921561325012
-  4322674655533575092357123571320572375612935612351236571235016562157921561325012
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
-  4791235915976235923659231593125613259312596235921369562395692365632532165982315
+  24134323113235750923571235713205723756129356123512365712350165621579
+  32154535356235750923571235713205723756129356123512365712350165621579
+  32552456542545750923571235713205723756129356123512365712350165621579
+  34465858454525750923571235713205723756129356123512365712350165621579
+  45466578675365750923571235713205723756129356123512365712350165621579
+  14385987984545750923571235713205723756129356123512365712350165621579
+  44578769877665750923571235713205723756129356123512365712350165621579
+  36378779796535750923571235713205723756129356123512365712350165621579
+  46549679868875750923571235713205723756129356123512365712350165621579
+  45646799864535750923571235713205723756129356123512365712350165621579
+  12246868655635750923571235713205723756129356123512365712350165621579
+  25465488877355750923571235713205723756129356123512365712350165621579
+  43226746555335750923571235713205723756129356123512365712350165621579
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
+  47912359159762359236592315931256132593125962359213695623956923656325
   """
 
-  # @raw_input """
-  # 2413432311323
-  # 3215453535623
-  # 3255245654254
-  # 3446585845452
-  # 4546657867536
-  # 1438598798454
-  # 4457876987766
-  # 3637877979653
-  # 4654967986887
-  # 4564679986453
-  # 1224686865563
-  # 2546548887735
-  # 4322674655533
-  # """
+  @raw_input """
+  2413432311323
+  3215453535623
+  3255245654254
+  3446585845452
+  4546657867536
+  1438598798454
+  4457876987766
+  3637877979653
+  4654967986887
+  4564679986453
+  1224686865563
+  2546548887735
+  4322674655533
+  """
 
   # @raw_input """
   # 1111111111111
@@ -907,6 +896,8 @@ PartOne.solve(puzzle_input)
 # full takes 91 seconds
 # |> List.first() |> String.length()
 
+# Update: now only takes 19 seconds
+
 # 141 rows, 141 columns
 # 141 * 141
 # 19881
@@ -915,12 +906,6 @@ PartOne.solve(puzzle_input)
 # (19881 / 169) * 0.02
 
 # current output: 908 - too high
-
-
-
- 123
-.   
- 456
 ```
 
 <!-- livebook:{"branch_parent_index":2} -->
@@ -989,4 +974,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":23481,"stamp":{"token":"XCP.1AM1p4Z1hb2wQC_3qFPiqXy4umLbD1E1HtrBOotiT2IYHcXb7A0w6shAm-gGF-DBf7dDqL-yAHD-4MnkXM2AfIMN_zqka8xoSkbbzDc5dpQT7b_vqRw","version":2}} -->
+<!-- livebook:{"offset":24259,"stamp":{"token":"XCP.Er5SUsIKtASnkmUhxL9kmM7gN3c3t2R74Ynq2T8kUMNpws9qKlrX66Pq68tuy5fYseUjHwaquuS21S3xqqP_PM7_FYSzADInt361CMTnDpXN8uLbuPI","version":2}} -->
