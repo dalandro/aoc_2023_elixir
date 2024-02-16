@@ -497,7 +497,6 @@ defmodule PartOne do
       end)
       |> Enum.map(fn result -> {result, cost_of_path(result)} end)
       |> Enum.min_by(fn {_, cost} -> cost end)
-      |> Enum.e()
 
     print_output(tiles, result)
 
@@ -860,51 +859,12 @@ ExUnit.run()
 
 # :eprof.stop_profiling()
 # IO.inspect(:eprof.analyze(:total))
-
-# 2>>34^>>>1323
-# 32v>>>35v5623
-# 32552456v>>54
-# 3446585845v52
-# 4546657867v>6
-# 14385987984v4
-# 44578769877v6
-# 36378779796v>
-# 465496798688v
-# 456467998645v
-# 12246868655<v
-# 25465488877v5
-# 43226746555v>
 ```
 
 ### Solution - Part 1
 
 ```elixir
 PartOne.solve(puzzle_input)
-# reduced_puzzle_input = puzzle_input 
-# |> String.split("\n", trim: true) #|> Enum.map(fn v -> IO.puts(v); v end)
-# reduced_puzzle_input = reduced_puzzle_input |> Enum.slice(0..(Enum.count(reduced_puzzle_input) |> div(2)))
-# |> Enum.map(fn string -> String.slice(string, 0..(String.length(string) |> div(2))) end)
-# |> Enum.map(fn v -> IO.puts(v); v end)
-# |> Enum.join("\n")
-# PartOne.solve(reduced_puzzle_input)
-
-# quartered takes 11.3 seconds - 515
-# 3/4 each dimension takes 35 seconds
-# full takes 91 seconds
-# |> List.first() |> String.length()
-
-# Update: now only takes 19 seconds merging f_score into open_set
-# Update: now only takes 6.5 seconds, and most of the time is printing
-#          - 1.8s without printing
-
-# 141 rows, 141 columns
-# 141 * 141
-# 19881
-# 13 * 13
-# 169
-# (19881 / 169) * 0.02
-
-# current output: 908 - too high
 ```
 
 <!-- livebook:{"branch_parent_index":2} -->
@@ -973,4 +933,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":22441,"stamp":{"token":"XCP.8KV2Z7XmffDvmfVoNjI0gb0hZ1ZTxUZqp6cv3HN0qsxzlKPJiIL7JI-uCD0cg70plc0X4EJZA7xIVJek54ttD_-xkI634EqrIGpDB_dtTm1iW1G57g8","version":2}} -->
+<!-- livebook:{"offset":21056,"stamp":{"token":"XCP.Baa48IUh8Sm39IKmH6jAz_q374rG7k1wKV_Ka9aTtSrGbPbDxevfm6byEftmd9XXDzUDGJ2YzKD3eTkcz7sZFU_E97Gkezms-JrelJ3KAKzo_IHz2B0","version":2}} -->
