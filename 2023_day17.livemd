@@ -482,17 +482,20 @@ defmodule PartOne do
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(tiles_string) when is_bitstring(tiles_string),
-    do: run(Parser.parse_to_hash(tiles_string))
+  def run(tiles_input), do: run(tiles_input, &part_one_node_filter/3)
 
-  def run(tiles) do
+  def run(tiles_string, node_filter) when is_bitstring(tiles_string),
+    do: run(Parser.parse_to_hash(tiles_string), node_filter)
+
+  def run(tiles, node_filter) do
     {result, cost} =
       [:right, :down]
       |> Enum.map(fn direction ->
         a_star(
           tiles,
           coord_at(tiles, 0, 0, direction, 1),
-          coord_at(tiles, number_of_rows(tiles) - 1, number_of_columns(tiles) - 1)
+          coord_at(tiles, number_of_rows(tiles) - 1, number_of_columns(tiles) - 1),
+          node_filter
         )
       end)
       |> Enum.map(fn result -> {result, cost_of_path(result)} end)
@@ -556,15 +559,11 @@ defmodule PartOne do
 
   defmodule Score do
     def new, do: %{}
-    def get_generic(score, {v1, v2, v3, _v4, _v5}), do: get(score, {v1, v2, v3})
-    def get_generic(score, {v1, v2, v3}), do: get(score, {v1, v2, v3})
     def get(score, node), do: Map.get(score, node, :infinity)
-    def put_generic(score, {v1, v2, v3, _v4, _v5}, value), do: put(score, {v1, v2, v3}, value)
-    def put_generic(score, {v1, v2, v3}, value), do: put(score, {v1, v2, v3}, value)
     def put(score, node, value), do: Map.put(score, node, value)
   end
 
-  defp a_star(tiles, start, goal) do
+  defp a_star(tiles, start, goal, node_filter) do
     {goal_x, goal_y, _goal_cell} = goal
 
     h = fn node ->
@@ -574,14 +573,14 @@ defmodule PartOne do
       end
     end
 
-    a_star(tiles, start, goal, h)
+    a_star(tiles, start, goal, h, node_filter)
   end
 
   # A* finds a path from start to goal.
   # h is the heuristic function. h(n) estimates the cost to reach goal from node n.
   # This is a modified version that considers nodes with vectors of 
   # direction of steps in said direction so far.
-  defp a_star(tiles, start, goal, h) do
+  defp a_star(tiles, start, goal, h, node_filter) do
     # For node n, came_from[n] is the node immediately preceding it on the cheapest path from the start
     # to n currently known.
     came_from = %{}
@@ -600,10 +599,10 @@ defmodule PartOne do
     initial_f_score_value = h.(start)
     open_set = Heap.push(open_set, {initial_f_score_value, start})
 
-    a_star(tiles, start, goal, h, open_set, came_from, g_score)
+    a_star(tiles, start, goal, h, open_set, came_from, g_score, node_filter)
   end
 
-  defp a_star(tiles, start, goal, h, open_set, came_from, g_score) do
+  defp a_star(tiles, start, goal, h, open_set, came_from, g_score, node_filter) do
     if !Enum.empty?(open_set) do
       # This operation can occur in O(Log(N)) time if openSet is a min-heap or a priority queue
       current = node_with_lowest_score(open_set)
@@ -619,7 +618,7 @@ defmodule PartOne do
 
         {came_from, g_score, open_set} =
           Enum.reduce(
-            neighbors_of_current(tiles, current),
+            neighbors_of_current(tiles, current, node_filter, goal),
             {came_from, g_score, open_set},
             fn neighbor, {came_from, g_score, open_set} ->
               # d(current,neighbor) is the weight of the edge from current to neighbor
@@ -643,7 +642,7 @@ defmodule PartOne do
             end
           )
 
-        a_star(tiles, start, goal, h, open_set, came_from, g_score)
+        a_star(tiles, start, goal, h, open_set, came_from, g_score, node_filter)
       end
     else
       # Open set is empty but goal was never reached
@@ -659,14 +658,12 @@ defmodule PartOne do
     Heap.root(set) |> elem(1)
   end
 
-  defp neighbors_of_current(tiles, {x, y, cost}),
-    do: neighbors_of_current(tiles, {x, y, cost, nil, 1})
+  defp neighbors_of_current(tiles, {x, y, cost}, node_filter, goal_node),
+    do: neighbors_of_current(tiles, {x, y, cost, nil, 1}, node_filter, goal_node)
 
-  defp neighbors_of_current(tiles, {x, y, cost, direction, steps}) do
-    _neighbors_of_current(tiles, {x, y, cost, direction, steps})
-    |> Enum.filter(fn {_, _, neighbor_cell, _neighbor_direction, neighbor_steps} ->
-      neighbor_cell != nil && neighbor_steps <= 3
-    end)
+  defp neighbors_of_current(tiles, node, node_filter, goal_node) do
+    _neighbors_of_current(tiles, node)
+    |> Enum.filter(fn neighbor_node -> node_filter.(node, neighbor_node, goal_node) end)
   end
 
   defp _neighbors_of_current(tiles, {x, y, _, :right, steps}) do
@@ -710,19 +707,27 @@ defmodule PartOne do
     ]
   end
 
-  defp up_from(tiles, x, y, steps) do
+  defp part_one_node_filter(
+         {_, _, _, _prev_direction, _prev_steps},
+         {_, _, neighbor_cell, _neighbor_direction, neighbor_steps},
+         _goal_node
+       ) do
+    neighbor_cell != nil && neighbor_steps <= 3
+  end
+
+  def up_from(tiles, x, y, steps) do
     coord_at(tiles, x - 1, y, :up, steps)
   end
 
-  defp down_from(tiles, x, y, steps) do
+  def down_from(tiles, x, y, steps) do
     coord_at(tiles, x + 1, y, :down, steps)
   end
 
-  defp left_from(tiles, x, y, steps) do
+  def left_from(tiles, x, y, steps) do
     coord_at(tiles, x, y - 1, :left, steps)
   end
 
-  defp right_from(tiles, x, y, steps) do
+  def right_from(tiles, x, y, steps) do
     coord_at(tiles, x, y + 1, :right, steps)
   end
 
@@ -769,33 +774,6 @@ defmodule PartOneTest do
   import PartOne
 
   @raw_input """
-  24134323113235750923571235713205723756129356123512365712350165621579
-  32154535356235750923571235713205723756129356123512365712350165621579
-  32552456542545750923571235713205723756129356123512365712350165621579
-  34465858454525750923571235713205723756129356123512365712350165621579
-  45466578675365750923571235713205723756129356123512365712350165621579
-  14385987984545750923571235713205723756129356123512365712350165621579
-  44578769877665750923571235713205723756129356123512365712350165621579
-  36378779796535750923571235713205723756129356123512365712350165621579
-  46549679868875750923571235713205723756129356123512365712350165621579
-  45646799864535750923571235713205723756129356123512365712350165621579
-  12246868655635750923571235713205723756129356123512365712350165621579
-  25465488877355750923571235713205723756129356123512365712350165621579
-  43226746555335750923571235713205723756129356123512365712350165621579
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  47912359159762359236592315931256132593125962359213695623956923656325
-  """
-
-  @raw_input """
   2413432311323
   3215453535623
   3255245654254
@@ -809,19 +787,6 @@ defmodule PartOneTest do
   1224686865563
   2546548887735
   4322674655533
-  """
-
-  # @raw_input """
-  # 1111111111111
-  # 4564679986451
-  # 1224686865563
-  # 2546548887735
-  # 4322674655533
-  # """
-
-  @raw_input2 """
-  123
-  456
   """
 
   @input Parser.parse_to_hash(@raw_input)
@@ -853,12 +818,7 @@ defmodule PartOneTest do
   end
 end
 
-# :eprof.start_profiling([self()])
-
 ExUnit.run()
-
-# :eprof.stop_profiling()
-# IO.inspect(:eprof.analyze(:total))
 ```
 
 ### Solution - Part 1
@@ -875,16 +835,24 @@ PartOne.solve(puzzle_input)
 
 ```elixir
 defmodule PartTwo do
-  import PartOne, except: [run: 1]
-
   def solve(input) do
     IO.puts("--- Part Two ---")
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(tiles_string) when is_bitstring(tiles_string), do: run(Parser.parse(tiles_string))
-
   def run(tiles) do
+    PartOne.run(tiles, &part_two_node_filter/3)
+  end
+
+  defp part_two_node_filter(
+         {_, _, _, prev_direction, prev_steps},
+         {neighbor_x, neighbor_y, neighbor_cell, neighbor_direction, neighbor_steps},
+         {goal_x, goal_y, _}
+       ) do
+    neighbor_cell != nil &&
+      ((prev_direction != neighbor_direction && prev_steps >= 4) ||
+         (prev_direction == neighbor_direction && neighbor_steps <= 10)) &&
+      ({neighbor_x, neighbor_y} != {goal_x, goal_y} || prev_steps + 1 >= 4)
   end
 end
 ```
@@ -918,7 +886,19 @@ defmodule PartTwoTest do
 
   describe "run/1" do
     test "main example" do
-      assert run(@raw_input) == 51
+      assert run(@raw_input) == 94
+    end
+
+    test "another main example" do
+      raw_input = """
+      111111111111
+      999999999991
+      999999999991
+      999999999991
+      999999999991
+      """
+
+      assert run(raw_input) == 71
     end
   end
 end
@@ -930,7 +910,6 @@ ExUnit.run()
 
 ```elixir
 PartTwo.solve(puzzle_input)
-# 8674
 ```
 
-<!-- livebook:{"offset":21056,"stamp":{"token":"XCP.Baa48IUh8Sm39IKmH6jAz_q374rG7k1wKV_Ka9aTtSrGbPbDxevfm6byEftmd9XXDzUDGJ2YzKD3eTkcz7sZFU_E97Gkezms-JrelJ3KAKzo_IHz2B0","version":2}} -->
+<!-- livebook:{"offset":19744,"stamp":{"token":"XCP.6TNIy_damDjZOH9QNXRDkSwEgtglv8kSM2XLwOEyyf-w2CAZnsY3mIc-Nzakokf7mp1ACGptHzqQneSxSRNxs4QOBoJ4_NK9Hsz_VP44Hm-2ml1VBD8","version":2}} -->
