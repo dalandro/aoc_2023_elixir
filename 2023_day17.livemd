@@ -486,16 +486,22 @@ defmodule PartOne do
     do: run(Parser.parse_to_hash(tiles_string))
 
   def run(tiles) do
-    result_path =
-      a_star(
-        tiles,
-        coord_at(tiles, 0, 0),
-        coord_at(tiles, number_of_rows(tiles) - 1, number_of_columns(tiles) - 1)
-      )
+    {result, cost} =
+      [:right, :down]
+      |> Enum.map(fn direction ->
+        a_star(
+          tiles,
+          coord_at(tiles, 0, 0, direction, 1),
+          coord_at(tiles, number_of_rows(tiles) - 1, number_of_columns(tiles) - 1)
+        )
+      end)
+      |> Enum.map(fn result -> {result, cost_of_path(result)} end)
+      |> Enum.min_by(fn {_, cost} -> cost end)
+      |> Enum.e()
 
-    # print_output(tiles, result_path)
+    print_output(tiles, result)
 
-    cost_of_path(result_path)
+    cost
   end
 
   defp cost_of_path(path) do
@@ -595,10 +601,10 @@ defmodule PartOne do
     initial_f_score_value = h.(start)
     open_set = Heap.push(open_set, {initial_f_score_value, start})
 
-    a_star(tiles, start, goal, h, open_set, came_from, g_score, nil)
+    a_star(tiles, start, goal, h, open_set, came_from, g_score)
   end
 
-  defp a_star(tiles, start, goal, h, open_set, came_from, g_score, result) do
+  defp a_star(tiles, start, goal, h, open_set, came_from, g_score) do
     if !Enum.empty?(open_set) do
       # This operation can occur in O(Log(N)) time if openSet is a min-heap or a priority queue
       current = node_with_lowest_score(open_set)
@@ -606,18 +612,9 @@ defmodule PartOne do
       if coords_equal?(current, goal) do
         reconstructed_path = reconstruct_path(came_from, current)
         cost_of_path = cost_of_path(reconstructed_path)
-        # print_output(tiles, reconstructed_path)
-        IO.inspect(%{cost_of_path: cost_of_path, compared_to_previous: result && elem(result, 1)})
+        IO.inspect(%{cost_of_path: cost_of_path})
 
-        result =
-          if !result || cost_of_path < elem(result, 1) do
-            {reconstructed_path, cost_of_path}
-          else
-            result
-          end
-
-        open_set = Heap.pop(open_set)
-        a_star(tiles, start, goal, h, open_set, came_from, g_score, result)
+        reconstructed_path
       else
         open_set = Heap.pop(open_set)
 
@@ -630,7 +627,10 @@ defmodule PartOne do
               # tentative_g_score is the distance from start to the neighbor through current
               tentative_g_score = Score.get(g_score, current) + d(current, neighbor)
 
-              if tentative_g_score < Score.get(g_score, neighbor) do
+              neighbor_existing_g_score = Score.get(g_score, neighbor)
+
+              if neighbor_existing_g_score == :infinity ||
+                   tentative_g_score < neighbor_existing_g_score do
                 # This path to neighbor is better than any previous one. Record it!
                 came_from = Map.put(came_from, neighbor, current)
                 g_score = Score.put(g_score, neighbor, tentative_g_score)
@@ -644,15 +644,11 @@ defmodule PartOne do
             end
           )
 
-        a_star(tiles, start, goal, h, open_set, came_from, g_score, result)
+        a_star(tiles, start, goal, h, open_set, came_from, g_score)
       end
     else
-      if result do
-        elem(result, 0)
-      else
-        # Open set is empty but goal was never reached
-        {:error, "Open set is empty but goal was never reached"}
-      end
+      # Open set is empty but goal was never reached
+      {:error, "Open set is empty but goal was never reached"}
     end
   end
 
@@ -664,71 +660,71 @@ defmodule PartOne do
     Heap.root(set) |> elem(1)
   end
 
-  defp neighbors_of_current(tiles, {current_x, current_y, current_cost}),
-    do: neighbors_of_current(tiles, {current_x, current_y, current_cost, nil, 1})
+  defp neighbors_of_current(tiles, {x, y, cost}),
+    do: neighbors_of_current(tiles, {x, y, cost, nil, 1})
 
-  defp neighbors_of_current(tiles, {current_x, current_y, current_cost, direction, steps}) do
-    _neighbors_of_current(tiles, {current_x, current_y, current_cost, direction, steps})
+  defp neighbors_of_current(tiles, {x, y, cost, direction, steps}) do
+    _neighbors_of_current(tiles, {x, y, cost, direction, steps})
     |> Enum.filter(fn {_, _, neighbor_cell, _neighbor_direction, neighbor_steps} ->
       neighbor_cell != nil && neighbor_steps <= 3
     end)
   end
 
-  defp _neighbors_of_current(tiles, {current_x, current_y, _, :right, steps}) do
+  defp _neighbors_of_current(tiles, {x, y, _, :right, steps}) do
     [
-      right_from(tiles, current_x, current_y, steps + 1),
-      down_from(tiles, current_x, current_y, 1),
-      up_from(tiles, current_x, current_y, 1)
+      right_from(tiles, x, y, steps + 1),
+      down_from(tiles, x, y, 1),
+      up_from(tiles, x, y, 1)
     ]
   end
 
-  defp _neighbors_of_current(tiles, {current_x, current_y, _, :down, steps}) do
+  defp _neighbors_of_current(tiles, {x, y, _, :down, steps}) do
     [
-      down_from(tiles, current_x, current_y, steps + 1),
-      right_from(tiles, current_x, current_y, 1),
-      left_from(tiles, current_x, current_y, 1)
+      down_from(tiles, x, y, steps + 1),
+      right_from(tiles, x, y, 1),
+      left_from(tiles, x, y, 1)
     ]
   end
 
-  defp _neighbors_of_current(tiles, {current_x, current_y, _, :left, steps}) do
+  defp _neighbors_of_current(tiles, {x, y, _, :left, steps}) do
     [
-      left_from(tiles, current_x, current_y, steps + 1),
-      down_from(tiles, current_x, current_y, 1),
-      up_from(tiles, current_x, current_y, 1)
+      left_from(tiles, x, y, steps + 1),
+      down_from(tiles, x, y, 1),
+      up_from(tiles, x, y, 1)
     ]
   end
 
-  defp _neighbors_of_current(tiles, {current_x, current_y, _, :up, steps}) do
+  defp _neighbors_of_current(tiles, {x, y, _, :up, steps}) do
     [
-      up_from(tiles, current_x, current_y, steps + 1),
-      right_from(tiles, current_x, current_y, 1),
-      left_from(tiles, current_x, current_y, 1)
+      up_from(tiles, x, y, steps + 1),
+      right_from(tiles, x, y, 1),
+      left_from(tiles, x, y, 1)
     ]
   end
 
-  defp _neighbors_of_current(tiles, {current_x, current_y, _, nil, steps}) do
+  defp _neighbors_of_current(tiles, {x, y, _, nil, steps}) do
     [
-      down_from(tiles, current_x, current_y, steps + 1),
-      up_from(tiles, current_x, current_y, steps + 1),
-      right_from(tiles, current_x, current_y, steps + 1),
-      left_from(tiles, current_x, current_y, steps + 1)
+      down_from(tiles, x, y, steps + 1),
+      up_from(tiles, x, y, steps + 1),
+      right_from(tiles, x, y, steps + 1),
+      left_from(tiles, x, y, steps + 1)
     ]
   end
 
-  defp up_from(tiles, current_x, current_y, steps) do
-    coord_at(tiles, current_x - 1, current_y, :up, steps)
+  defp up_from(tiles, x, y, steps) do
+    coord_at(tiles, x - 1, y, :up, steps)
   end
 
-  defp down_from(tiles, current_x, current_y, steps) do
-    coord_at(tiles, current_x + 1, current_y, :down, steps)
+  defp down_from(tiles, x, y, steps) do
+    coord_at(tiles, x + 1, y, :down, steps)
   end
 
-  defp left_from(tiles, current_x, current_y, steps) do
-    coord_at(tiles, current_x, current_y - 1, :left, steps)
+  defp left_from(tiles, x, y, steps) do
+    coord_at(tiles, x, y - 1, :left, steps)
   end
 
-  defp right_from(tiles, current_x, current_y, steps) do
-    coord_at(tiles, current_x, current_y + 1, :right, steps)
+  defp right_from(tiles, x, y, steps) do
+    coord_at(tiles, x, y + 1, :right, steps)
   end
 
   defp d(_current, {_, _, neighbor_cost, _, _}), do: neighbor_cost
@@ -800,21 +796,21 @@ defmodule PartOneTest do
   47912359159762359236592315931256132593125962359213695623956923656325
   """
 
-  # @raw_input """
-  # 2413432311323
-  # 3215453535623
-  # 3255245654254
-  # 3446585845452
-  # 4546657867536
-  # 1438598798454
-  # 4457876987766
-  # 3637877979653
-  # 4654967986887
-  # 4564679986453
-  # 1224686865563
-  # 2546548887735
-  # 4322674655533
-  # """
+  @raw_input """
+  2413432311323
+  3215453535623
+  3255245654254
+  3446585845452
+  4546657867536
+  1438598798454
+  4457876987766
+  3637877979653
+  4654967986887
+  4564679986453
+  1224686865563
+  2546548887735
+  4322674655533
+  """
 
   # @raw_input """
   # 1111111111111
@@ -858,12 +854,12 @@ defmodule PartOneTest do
   end
 end
 
-:eprof.start_profiling([self()])
+# :eprof.start_profiling([self()])
 
 ExUnit.run()
 
-:eprof.stop_profiling()
-IO.inspect(:eprof.analyze(:total))
+# :eprof.stop_profiling()
+# IO.inspect(:eprof.analyze(:total))
 
 # 2>>34^>>>1323
 # 32v>>>35v5623
@@ -977,4 +973,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":23143,"stamp":{"token":"XCP.OC5cjzx1mD63MW9dNv4XE6dlg3GnjKbuRc3lmdr_ymsrbRGR50Z69JH9WI_CHhUZ7euYa8lA9luW2m9HSXT0mOfaHuXQWX0DLg7sgDfhdAO6JLo2qN4","version":2}} -->
+<!-- livebook:{"offset":22441,"stamp":{"token":"XCP.8KV2Z7XmffDvmfVoNjI0gb0hZ1ZTxUZqp6cv3HN0qsxzlKPJiIL7JI-uCD0cg70plc0X4EJZA7xIVJek54ttD_-xkI634EqrIGpDB_dtTm1iW1G57g8","version":2}} -->
