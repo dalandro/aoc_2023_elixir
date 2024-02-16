@@ -493,7 +493,7 @@ defmodule PartOne do
         coord_at(tiles, number_of_rows(tiles) - 1, number_of_columns(tiles) - 1)
       )
 
-    print_output(tiles, result_path)
+    # print_output(tiles, result_path)
 
     cost_of_path(result_path)
   end
@@ -540,8 +540,10 @@ defmodule PartOne do
   defp reconstruct_path(came_from, current), do: reconstruct_path(came_from, current, [])
 
   defp reconstruct_path(came_from, current, total_path) do
-    if current in Map.keys(came_from) do
-      reconstruct_path(came_from, came_from[current], [current | total_path])
+    previous = came_from[current]
+
+    if previous do
+      reconstruct_path(came_from, previous, [current | total_path])
     else
       total_path
     end
@@ -628,7 +630,6 @@ defmodule PartOne do
               # tentative_g_score is the distance from start to the neighbor through current
               tentative_g_score = Score.get(g_score, current) + d(current, neighbor)
 
-              # && 
               if tentative_g_score < Score.get(g_score, neighbor) do
                 # This path to neighbor is better than any previous one. Record it!
                 came_from = Map.put(came_from, neighbor, current)
@@ -799,21 +800,21 @@ defmodule PartOneTest do
   47912359159762359236592315931256132593125962359213695623956923656325
   """
 
-  @raw_input """
-  2413432311323
-  3215453535623
-  3255245654254
-  3446585845452
-  4546657867536
-  1438598798454
-  4457876987766
-  3637877979653
-  4654967986887
-  4564679986453
-  1224686865563
-  2546548887735
-  4322674655533
-  """
+  # @raw_input """
+  # 2413432311323
+  # 3215453535623
+  # 3255245654254
+  # 3446585845452
+  # 4546657867536
+  # 1438598798454
+  # 4457876987766
+  # 3637877979653
+  # 4654967986887
+  # 4564679986453
+  # 1224686865563
+  # 2546548887735
+  # 4322674655533
+  # """
 
   # @raw_input """
   # 1111111111111
@@ -896,7 +897,9 @@ PartOne.solve(puzzle_input)
 # full takes 91 seconds
 # |> List.first() |> String.length()
 
-# Update: now only takes 19 seconds
+# Update: now only takes 19 seconds merging f_score into open_set
+# Update: now only takes 6.5 seconds, and most of the time is printing
+#          - 1.8s without printing
 
 # 141 rows, 141 columns
 # 141 * 141
@@ -974,4 +977,4 @@ PartTwo.solve(puzzle_input)
 # 8674
 ```
 
-<!-- livebook:{"offset":24259,"stamp":{"token":"XCP.Er5SUsIKtASnkmUhxL9kmM7gN3c3t2R74Ynq2T8kUMNpws9qKlrX66Pq68tuy5fYseUjHwaquuS21S3xqqP_PM7_FYSzADInt361CMTnDpXN8uLbuPI","version":2}} -->
+<!-- livebook:{"offset":23143,"stamp":{"token":"XCP.OC5cjzx1mD63MW9dNv4XE6dlg3GnjKbuRc3lmdr_ymsrbRGR50Z69JH9WI_CHhUZ7euYa8lA9luW2m9HSXT0mOfaHuXQWX0DLg7sgDfhdAO6JLo2qN4","version":2}} -->
