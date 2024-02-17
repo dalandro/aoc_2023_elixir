@@ -1,0 +1,432 @@
+# Advent of Code - Day 18
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Introduction
+
+--> Content
+
+## Puzzle
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"18","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "18", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Parser
+
+### Code - Parser
+
+```elixir
+defmodule Parser do
+  def parse(input) do
+    String.split(input, "\n", trim: true)
+    |> Enum.map(fn line ->
+      [direction, distance_string, color_raw] = String.split(line, " ", trim: true)
+
+      %{
+        direction: direction,
+        distance: String.to_integer(distance_string),
+        color: Regex.replace(~r/\(|\)/, color_raw, "")
+      }
+    end)
+  end
+end
+```
+
+### Tests - Parser
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule ParserTest do
+  use ExUnit.Case, async: true
+  import Parser
+
+  @input """
+  R 6 (#70c710)
+  D 5 (#0dc571)
+  L 2 (#5713f0)
+  D 2 (#d2c081)
+  R 2 (#59c680)
+  D 2 (#411b91)
+  L 5 (#8ceee2)
+  U 2 (#caa173)
+  L 1 (#1b58a2)
+  U 2 (#caa171)
+  R 2 (#7807d2)
+  U 3 (#a77fa3)
+  L 2 (#015232)
+  U 2 (#7a21e3)
+  """
+
+  @expected [
+    %{direction: "R", distance: 6, color: "#70c710"},
+    %{direction: "D", distance: 5, color: "#0dc571"},
+    %{direction: "L", distance: 2, color: "#5713f0"},
+    %{direction: "D", distance: 2, color: "#d2c081"},
+    %{direction: "R", distance: 2, color: "#59c680"},
+    %{direction: "D", distance: 2, color: "#411b91"},
+    %{direction: "L", distance: 5, color: "#8ceee2"},
+    %{direction: "U", distance: 2, color: "#caa173"},
+    %{direction: "L", distance: 1, color: "#1b58a2"},
+    %{direction: "U", distance: 2, color: "#caa171"},
+    %{direction: "R", distance: 2, color: "#7807d2"},
+    %{direction: "U", distance: 3, color: "#a77fa3"},
+    %{direction: "L", distance: 2, color: "#015232"},
+    %{direction: "U", distance: 2, color: "#7a21e3"}
+  ]
+
+  describe "parse/1" do
+    test "simple example" do
+      assert parse(@input) == @expected
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part One
+
+### Code - Part 1
+
+```elixir
+defmodule PartOne do
+  def solve(input) do
+    IO.puts("--- Part One ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(input_string) when is_bitstring(input_string),
+    do: run(Parser.parse(input_string))
+
+  def run(input) do
+    map_out_digging_perimeter(input)
+    |> fill_in_area()
+    |> sum_of_trenches()
+  end
+
+  def map_out_digging_perimeter(input) do
+    digging_coordinates(input)
+    |> coordinates_to_graph()
+  end
+
+  def fill_in_area(graph) do
+    max_y = Enum.count(graph) - 1
+    max_x = Enum.count(hd(graph)) - 1
+
+    Enum.map(graph, fn row ->
+      Enum.reduce(row, {[], false, nil}, fn cell, {row, inside, coord_of_boundary_start} ->
+        # TODO: Consider last piece, make sure set to change state conservatively 
+        # TODO: Run both horizontally and vertically, or make the alg consider prev cell north/south neighbor
+        case inside do
+          false ->
+            case cell do
+              "#" -> {[cell | row], true, cell}
+              "." -> {[cell | row], inside, cell}
+            end
+
+          true ->
+            case cell do
+              "." ->
+                {["#" | row], inside, cell}
+
+              "#" ->
+                if coord_of_boundary_start == "#" do
+                  {[cell | row], true, cell}
+                else
+                  {[cell | row], false, cell}
+                end
+            end
+        end
+      end)
+      |> elem(0)
+      |> Enum.reverse()
+    end)
+  end
+
+  defp cell_at(graph, y, x) do
+    Enum.at(graph, y) |> Enum.at(x)
+  end
+
+  defp sum_of_trenches(graph) do
+    Enum.reduce(graph, 0, fn row, count ->
+      count + Enum.count(row, &(&1 == "#"))
+    end)
+  end
+
+  def digging_coordinates(input) do
+    start = {0, 0}
+    coords = [start]
+
+    Enum.reduce(input, {coords, start}, fn %{direction: dir, distance: dist},
+                                           {coords, current_coord} ->
+      {last_y, last_x} = current_coord
+
+      {coordinates_traversed, new_coord} =
+        case dir do
+          "R" -> {Enum.map((last_x + 1)..(last_x + dist), &{last_y, &1}), {last_y, last_x + dist}}
+          "L" -> {Enum.map((last_x - 1)..(last_x - dist), &{last_y, &1}), {last_y, last_x - dist}}
+          "D" -> {Enum.map((last_y + 1)..(last_y + dist), &{&1, last_x}), {last_y + dist, last_x}}
+          "U" -> {Enum.map((last_y - 1)..(last_y - dist), &{&1, last_x}), {last_y - dist, last_x}}
+        end
+
+      {coords ++ coordinates_traversed, new_coord}
+    end)
+    |> elem(0)
+    |> Enum.uniq()
+  end
+
+  defp coordinates_to_graph(coordinates) do
+    {{_, min_x}, {_, max_x}} = Enum.min_max_by(coordinates, fn {_y, x} -> x end)
+    {{min_y, _}, {max_y, _}} = Enum.min_max_by(coordinates, fn {y, _x} -> y end)
+
+    Enum.map(min_y..max_y, fn y ->
+      Enum.map(min_x..max_x, fn x ->
+        if {y, x} in coordinates do
+          "#"
+        else
+          "."
+        end
+      end)
+    end)
+  end
+end
+```
+
+### Tests - Part 1
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartOneTest do
+  use ExUnit.Case, async: true
+  import PartOne
+
+  @raw_input """
+  R 6 (#70c710)
+  D 5 (#0dc571)
+  L 2 (#5713f0)
+  D 2 (#d2c081)
+  R 2 (#59c680)
+  D 2 (#411b91)
+  L 5 (#8ceee2)
+  U 2 (#caa173)
+  L 1 (#1b58a2)
+  U 2 (#caa171)
+  R 2 (#7807d2)
+  U 3 (#a77fa3)
+  L 2 (#015232)
+  U 2 (#7a21e3)
+  """
+
+  @input Parser.parse(@raw_input)
+
+  describe "run/1" do
+    test "main example" do
+      assert run(@raw_input) == 62
+    end
+  end
+
+  describe "map_out_digging/1" do
+    test "main example" do
+      assert map_out_digging_perimeter(@input) == [
+               ["#", "#", "#", "#", "#", "#", "#"],
+               ["#", ".", ".", ".", ".", ".", "#"],
+               ["#", "#", "#", ".", ".", ".", "#"],
+               [".", ".", "#", ".", ".", ".", "#"],
+               [".", ".", "#", ".", ".", ".", "#"],
+               ["#", "#", "#", ".", "#", "#", "#"],
+               ["#", ".", ".", ".", "#", ".", "."],
+               ["#", "#", ".", ".", "#", "#", "#"],
+               [".", "#", ".", ".", ".", ".", "#"],
+               [".", "#", "#", "#", "#", "#", "#"]
+             ]
+    end
+  end
+
+  describe "digging_coordinates/1" do
+    test "main example" do
+      assert digging_coordinates(@input) == [
+               {0, 0},
+               {0, 1},
+               {0, 2},
+               {0, 3},
+               {0, 4},
+               {0, 5},
+               {0, 6},
+               {1, 6},
+               {2, 6},
+               {3, 6},
+               {4, 6},
+               {5, 6},
+               {5, 5},
+               {5, 4},
+               {6, 4},
+               {7, 4},
+               {7, 5},
+               {7, 6},
+               {8, 6},
+               {9, 6},
+               {9, 5},
+               {9, 4},
+               {9, 3},
+               {9, 2},
+               {9, 1},
+               {8, 1},
+               {7, 1},
+               {7, 0},
+               {6, 0},
+               {5, 0},
+               {5, 1},
+               {5, 2},
+               {4, 2},
+               {3, 2},
+               {2, 2},
+               {2, 1},
+               {2, 0},
+               # {0, 0} at the end is non-uniq, so ignored
+               {1, 0}
+             ]
+    end
+
+    test "simple example" do
+      input = """
+      R 2 (#70c710)
+      D 1 (#0dc571)
+      L 2 (#0dc571)
+      """
+
+      assert digging_coordinates(Parser.parse(input)) == [
+               {0, 0},
+               {0, 1},
+               {0, 2},
+               {1, 2},
+               {1, 1},
+               {1, 0}
+             ]
+    end
+  end
+
+  describe "fill_in_area/1" do
+    test "main example" do
+      input = [
+        ["#", "#", "#", "#", "#", "#", "#"],
+        ["#", ".", ".", ".", ".", ".", "#"],
+        ["#", "#", "#", ".", ".", ".", "#"],
+        [".", ".", "#", ".", ".", ".", "#"],
+        [".", ".", "#", ".", ".", ".", "#"],
+        ["#", "#", "#", ".", "#", "#", "#"],
+        ["#", ".", ".", ".", "#", ".", "."],
+        ["#", "#", ".", ".", "#", "#", "#"],
+        [".", "#", ".", ".", ".", ".", "#"],
+        [".", "#", "#", "#", "#", "#", "#"]
+      ]
+
+      assert fill_in_area(input) == [
+               ["#", "#", "#", "#", "#", "#", "#"],
+               ["#", "#", "#", "#", "#", "#", "#"],
+               ["#", "#", "#", "#", "#", "#", "#"],
+               [".", ".", "#", "#", "#", "#", "#"],
+               [".", ".", "#", "#", "#", "#", "#"],
+               ["#", "#", "#", "#", "#", "#", "#"],
+               ["#", "#", "#", "#", "#", ".", "."],
+               ["#", "#", "#", "#", "#", "#", "#"],
+               [".", "#", "#", "#", "#", "#", "#"],
+               [".", "#", "#", "#", "#", "#", "#"]
+             ]
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 1
+
+```elixir
+# PartOne.solve(puzzle_input)
+
+input = Parser.parse(puzzle_input)
+
+map = PartOne.map_out_digging_perimeter(input)
+map |> Enum.map(fn row -> IO.puts(Enum.join(row)) end)
+
+filled_in_map = map |> PartOne.fill_in_area()
+filled_in_map |> Enum.map(fn row -> IO.puts(Enum.join(row)) end)
+# filled_in_map |> sum_of_trenches()
+# 71485 <- too high, 6.1s
+```
+
+<!-- livebook:{"branch_parent_index":2} -->
+
+## Part Two
+
+### Code - Part 2
+
+```elixir
+defmodule PartTwo do
+  def solve(input) do
+    IO.puts("--- Part Two ---")
+    IO.puts("Result: #{run(input)}")
+  end
+
+  def run(tiles) do
+  end
+end
+```
+
+### Tests - Part 2
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule PartTwoTest do
+  use ExUnit.Case, async: true
+  import PartTwo
+
+  @raw_input """
+  R 6 (#70c710)
+  D 5 (#0dc571)
+  L 2 (#5713f0)
+  D 2 (#d2c081)
+  R 2 (#59c680)
+  D 2 (#411b91)
+  L 5 (#8ceee2)
+  U 2 (#caa173)
+  L 1 (#1b58a2)
+  U 2 (#caa171)
+  R 2 (#7807d2)
+  U 3 (#a77fa3)
+  L 2 (#015232)
+  U 2 (#7a21e3)
+  """
+
+  @input Parser.parse(@raw_input)
+
+  describe "run/1" do
+    test "main example" do
+      assert run(@raw_input) == 94
+    end
+  end
+end
+
+ExUnit.run()
+```
+
+### Solution - Part 2
+
+```elixir
+PartTwo.solve(puzzle_input)
+```
+
+<!-- livebook:{"offset":10070,"stamp":{"token":"XCP.IADarR_m3OX39E8UjLiblZp2drtRh4tCJ3g9C2CSp6sJuJzlXVhmISuDGa7UtMrvxPQf3DdpFyBkHLw5VWUoH9NJHO527IXBXf_CXCGvnAhTT4hsVwQ","version":2}} -->
