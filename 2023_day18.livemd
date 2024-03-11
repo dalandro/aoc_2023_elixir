@@ -129,49 +129,37 @@ defmodule PartOne do
     Enum.map(rows_with_idx, fn {cols, ridx} ->
       cols_with_idx = Enum.with_index(cols)
 
-      Enum.reduce(cols_with_idx, {[], false, hd(cols) == "#", nil}, fn {cell, cidx},
-                                                                       {row, inside, on_boundary,
-                                                                        boundary_start} ->
+      Enum.reduce(cols_with_idx, {[], false, nil}, fn {cell, cidx},
+                                                      {row, inside, start_of_boundary} ->
         # TODO: Consider last piece, make sure set to change state conservatively 
         # TODO: Run both horizontally and vertically, or make the alg consider prev cell north/south neighbor
 
-        case on_boundary do
-          true ->
-            if cell == "#" do
-              still_on_boundary(cell, row, inside, on_boundary, boundary_start)
-            else
+        if start_of_boundary do
+          case cell do
+            "#" ->
+              still_on_boundary(cell, row, inside, start_of_boundary)
+
+            "." ->
               # TODO: Fix this to consider not actually crossing in/out
               # if WAS inside before
               if inside do
-                {[cell | row], !inside, !on_boundary, nil}
+                {[cell | row], !inside, nil}
               else
-                {["#" | row], !inside, !on_boundary, nil}
+                {["#" | row], !inside, nil}
               end
-            end
+          end
+        else
+          case cell do
+            "#" ->
+              now_on_boundary(graph, ridx, cidx, cell, row, inside, start_of_boundary)
 
-          false ->
-            # TODO: REMOVE REDUNDANT CODE
-
-            case inside do
-              false ->
-                case cell do
-                  "#" -> {[cell | row], inside, true, boundary_start(graph, cell, ridx, cidx)}
-                  "." -> still_fully_outside(cell, row, inside, on_boundary, boundary_start)
-                end
-
-              true ->
-                case cell do
-                  "." ->
-                    fully_inside(cell, row, inside, on_boundary, boundary_start)
-
-                  "#" ->
-                    if on_boundary do
-                      still_on_boundary(cell, row, inside, on_boundary, boundary_start)
-                    else
-                      {[cell | row], inside, true, boundary_start(graph, cell, ridx, cidx)}
-                    end
-                end
-            end
+            "." ->
+              if inside do
+                fully_inside(cell, row, inside, start_of_boundary)
+              else
+                fully_outside(cell, row, inside, start_of_boundary)
+              end
+          end
         end
       end)
       |> elem(0)
@@ -179,21 +167,16 @@ defmodule PartOne do
     end)
   end
 
-  # consider essential process
-  #  - crosses onto boundary 
-  #    - find out if we were going along a boundary then exited again
-  #         - this is the same for both when inside and out 
+  defp now_on_boundary(graph, ridx, cidx, cell, row, inside, _start_of_boundary),
+    do: {[cell | row], inside, start_of_boundary(graph, cell, ridx, cidx)}
 
-  defp still_on_boundary(cell, row, inside, on_boundary, boundary_start),
-    do: {[cell | row], inside, on_boundary, boundary_start}
+  defp still_on_boundary(cell, row, inside, start_of_boundary),
+    do: {[cell | row], inside, start_of_boundary}
 
-  defp still_fully_outside(cell, row, inside, _on_boundary, _boundary_start),
-    do: {[cell | row], inside, false, nil}
+  defp fully_outside(cell, row, inside, _start_of_boundary), do: {[cell | row], inside, nil}
+  defp fully_inside(_cell, row, inside, _start_of_boundary), do: {["#" | row], inside, nil}
 
-  defp fully_inside(_cell, row, inside, _on_boundary, _boundary_start),
-    do: {["#" | row], inside, false, nil}
-
-  defp boundary_start(graph, cell, ridx, cidx) do
+  defp start_of_boundary(graph, cell, ridx, cidx) do
     %{
       cell: cell,
       cell_above: cell_at(graph, ridx - 1, cidx),
@@ -495,4 +478,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":12450,"stamp":{"token":"XCP.vv5YX4T3qVWFMR3fYc0Uhv9bVB8IrLUedOxl409nr0Uy_5Q1Dvuf4VIZh9MmioeyctVVUx7R04MNtqegLrt-DmBuU9M72h3QP5whqoH5niViBunVyPQ","version":2}} -->
+<!-- livebook:{"offset":11730,"stamp":{"token":"XCP.z6Vvg_FQjOm-_N6a-b8K9ubQuxTeFQ0hI6FOFXSvWe9r3ZwsZYhQlNim8HoWs7Fa9bZMTEcP-z3gvK-Gy6eMCljyNLM5arj10-Eoht0sYg5xahmPjhU","version":2}} -->
