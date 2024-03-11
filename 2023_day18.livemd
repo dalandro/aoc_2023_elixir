@@ -126,44 +126,48 @@ defmodule PartOne do
     Enum.map(rows_with_idx, fn {cols, ridx} ->
       cols_with_idx = Enum.with_index(cols)
 
-      Enum.reduce(cols_with_idx, {[], false, nil}, fn {cell, cidx},
-                                                      {row, inside, start_of_boundary} ->
-        if on_boundary?(start_of_boundary) do
-          case cell do
-            "#" -> still_on_boundary(cell, row, inside, start_of_boundary)
-            "." -> now_off_boundary(graph, ridx, cidx, cell, row, inside, start_of_boundary)
-          end
-        else
-          case cell do
-            "#" ->
-              now_on_boundary(graph, ridx, cidx, cell, row, inside, start_of_boundary)
+      Enum.reduce(
+        cols_with_idx,
+        {[], false, start_of_boundary(graph, hd(cols), ridx, 0)},
+        fn {cell, cidx}, {row, inside, start_of_boundary} ->
+          if on_boundary?(start_of_boundary) do
+            case cell do
+              "#" -> still_on_boundary(cell, row, inside, start_of_boundary)
+              "." -> now_off_boundary(graph, ridx, cidx, cell, row, inside, start_of_boundary)
+            end
+          else
+            case cell do
+              "#" ->
+                now_on_boundary(graph, ridx, cidx, cell, row, inside, start_of_boundary)
 
-            "." ->
-              if inside do
-                fully_inside(cell, row, inside, start_of_boundary)
-              else
-                fully_outside(cell, row, inside, start_of_boundary)
-              end
+              "." ->
+                if inside do
+                  fully_inside(cell, row, inside, start_of_boundary)
+                else
+                  fully_outside(cell, row, inside, start_of_boundary)
+                end
+            end
           end
         end
-      end)
+      )
       |> elem(0)
       |> Enum.reverse()
     end)
   end
 
-  defp on_boundary?(start_of_boundary), do: start_of_boundary
+  defp on_boundary?(start_of_boundary) do
+    start_of_boundary
+  end
 
   defp now_on_boundary(graph, ridx, cidx, cell, row, inside, _start_of_boundary),
-    do: {[cell | row], inside, start_of_boundary(graph, ridx, cidx)}
+    do: {[cell | row], inside, start_of_boundary(graph, cell, ridx, cidx)}
 
   defp still_on_boundary(cell, row, inside, start_of_boundary),
     do: {[cell | row], inside, start_of_boundary}
 
   defp now_off_boundary(graph, end_ridx, end_cidx, cell, row, inside, start_of_boundary) do
-    # TODO: GET THIS WORKING
     if was_travelling_alongside_boundary?(end_ridx, end_cidx - 1, start_of_boundary) &&
-         !boundary_zigzagged?(graph, end_ridx, end_cidx - 1, start_of_boundary) do
+         boundary_180?(graph, end_ridx, end_cidx - 1, start_of_boundary) do
       # if WAS inside before
       if inside do
         fully_inside(cell, row, inside, nil)
@@ -183,25 +187,27 @@ defmodule PartOne do
   defp fully_outside(cell, row, inside, _start_of_boundary), do: {[cell | row], inside, nil}
   defp fully_inside(_cell, row, inside, _start_of_boundary), do: {["#" | row], inside, nil}
 
-  defp start_of_boundary(graph, ridx, cidx) do
-    %{
-      cell_above: cell_at(graph, ridx - 1, cidx),
-      cell_below: cell_at(graph, ridx + 1, cidx),
-      ridx: ridx,
-      cidx: cidx
-    }
+  defp start_of_boundary(graph, cell, ridx, cidx) do
+    if cell == "#" do
+      %{
+        cell_above: cell_at(graph, ridx - 1, cidx),
+        cell_below: cell_at(graph, ridx + 1, cidx),
+        ridx: ridx,
+        cidx: cidx
+      }
+    end
   end
 
   defp was_travelling_alongside_boundary?(_end_ridx, end_cidx, %{cidx: start_cidx}) do
-    start_cidx + 1 < end_cidx
+    start_cidx < end_cidx
   end
 
-  defp boundary_zigzagged?(graph, end_ridx, end_cidx, %{
+  defp boundary_180?(graph, end_ridx, end_cidx, %{
          cell_above: start_cell_above,
          cell_below: start_cell_below
        }) do
-    (start_cell_below == "#" && cell_at(graph, end_ridx - 1, end_cidx) == "#") ||
-      (start_cell_above == "#" && cell_at(graph, end_ridx + 1, end_cidx) == "#")
+    (start_cell_below == "#" && cell_at(graph, end_ridx + 1, end_cidx) == "#") ||
+      (start_cell_above == "#" && cell_at(graph, end_ridx - 1, end_cidx) == "#")
   end
 
   defp cell_at(graph, y, x) do
@@ -399,19 +405,41 @@ defmodule PartOneTest do
 
     test "example with up, right, down" do
       input = [
-        ["#", "#", "#", ".", "."],
-        ["#", ".", "#", ".", "."],
-        ["#", ".", "#", "#", "."],
-        ["#", ".", ".", "#", "."],
-        ["#", "#", "#", "#", "."]
+        ["#", "#", "#", ".", ".", "."],
+        ["#", ".", "#", ".", ".", "."],
+        ["#", ".", "#", "#", "#", "."],
+        ["#", ".", ".", ".", "#", "."],
+        ["#", "#", "#", "#", "#", "."],
+        [".", ".", ".", ".", ".", "."]
       ]
 
       assert fill_in_area(input) == [
-               ["#", "#", "#", ".", "."],
-               ["#", "#", "#", ".", "."],
+               ["#", "#", "#", ".", ".", "."],
+               ["#", "#", "#", ".", ".", "."],
+               ["#", "#", "#", "#", "#", "."],
+               ["#", "#", "#", "#", "#", "."],
+               ["#", "#", "#", "#", "#", "."],
+               [".", ".", ".", ".", ".", "."]
+             ]
+    end
+
+    test "example with up, right JUST A BIT, down" do
+      input = [
+        ["#", "#", ".", ".", "."],
+        ["#", "#", ".", ".", "."],
+        ["#", "#", "#", "#", "."],
+        ["#", ".", ".", "#", "."],
+        ["#", "#", "#", "#", "."],
+        [".", ".", ".", ".", "."]
+      ]
+
+      assert fill_in_area(input) == [
+               ["#", "#", ".", ".", "."],
+               ["#", "#", ".", ".", "."],
                ["#", "#", "#", "#", "."],
                ["#", "#", "#", "#", "."],
-               ["#", "#", "#", "#", "."]
+               ["#", "#", "#", "#", "."],
+               [".", ".", ".", ".", "."]
              ]
     end
   end
@@ -423,17 +451,18 @@ ExUnit.run()
 ### Solution - Part 1
 
 ```elixir
-# PartOne.solve(puzzle_input)
+PartOne.solve(puzzle_input)
 
-input = Parser.parse(puzzle_input)
+# input = Parser.parse(puzzle_input)
 
-map = PartOne.map_out_digging_perimeter(input)
-map |> Enum.map(fn row -> IO.puts(Enum.join(row)) end)
+# map = PartOne.map_out_digging_perimeter(input)
+# map |> Enum.map(fn row -> IO.puts(Enum.join(row)) end)
 
-filled_in_map = map |> PartOne.fill_in_area()
-filled_in_map |> Enum.map(fn row -> IO.puts(Enum.join(row)) end)
+# filled_in_map = map |> PartOne.fill_in_area()
+# filled_in_map |> Enum.map(fn row -> IO.puts(Enum.join(row)) end)
 # filled_in_map |> sum_of_trenches()
 # 71485 <- too high, 6.1s
+# 61865 <- 6.9s
 ```
 
 <!-- livebook:{"branch_parent_index":2} -->
@@ -498,4 +527,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":12398,"stamp":{"token":"XCP.v_R27Ph2TTsBH4pfIoYpJ9FcsdoPBpVzl-P_GfSMIqe1mMqqf7QRynLFVNRddMoNYXWn0ciwa1ue-3wPdlaEciloyjK39VUJUyRNJzvTgbIb5G5Dxxs","version":2}} -->
+<!-- livebook:{"offset":13230,"stamp":{"token":"XCP.u0yP2ptjXqfcABj3cQe_rVTP1eCOGIaNIhfiXwaV4ARPyr5-VkQxRYMt_TJmNkhjmD5DV7EFU4mKahc7Z-Zx2rZGt7R1uwNZuZOoJYKQjvDHJCTxLyA","version":2}} -->
