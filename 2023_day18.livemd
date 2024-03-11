@@ -134,19 +134,10 @@ defmodule PartOne do
         # TODO: Consider last piece, make sure set to change state conservatively 
         # TODO: Run both horizontally and vertically, or make the alg consider prev cell north/south neighbor
 
-        if start_of_boundary do
+        if on_boundary?(start_of_boundary) do
           case cell do
-            "#" ->
-              still_on_boundary(cell, row, inside, start_of_boundary)
-
-            "." ->
-              # TODO: Fix this to consider not actually crossing in/out
-              # if WAS inside before
-              if inside do
-                {[cell | row], !inside, nil}
-              else
-                {["#" | row], !inside, nil}
-              end
+            "#" -> still_on_boundary(cell, row, inside, start_of_boundary)
+            "." -> now_off_boundary(cell, row, inside, start_of_boundary)
           end
         else
           case cell do
@@ -167,11 +158,23 @@ defmodule PartOne do
     end)
   end
 
+  defp on_boundary?(start_of_boundary), do: start_of_boundary
+
   defp now_on_boundary(graph, ridx, cidx, cell, row, inside, _start_of_boundary),
     do: {[cell | row], inside, start_of_boundary(graph, cell, ridx, cidx)}
 
   defp still_on_boundary(cell, row, inside, start_of_boundary),
     do: {[cell | row], inside, start_of_boundary}
+
+  defp now_off_boundary(cell, row, inside, _start_of_boundary) do
+    # TODO: Fix this to consider not actually crossing in/out
+    # if WAS inside before
+    if inside do
+      {[cell | row], !inside, nil}
+    else
+      {["#" | row], !inside, nil}
+    end
+  end
 
   defp fully_outside(cell, row, inside, _start_of_boundary), do: {[cell | row], inside, nil}
   defp fully_inside(_cell, row, inside, _start_of_boundary), do: {["#" | row], inside, nil}
@@ -478,4 +481,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":11730,"stamp":{"token":"XCP.z6Vvg_FQjOm-_N6a-b8K9ubQuxTeFQ0hI6FOFXSvWe9r3ZwsZYhQlNim8HoWs7Fa9bZMTEcP-z3gvK-Gy6eMCljyNLM5arj10-Eoht0sYg5xahmPjhU","version":2}} -->
+<!-- livebook:{"offset":11850,"stamp":{"token":"XCP.v3jTTz_fzM3LTmkHdKthjYVYKY_6T-tQmGjVSi7TAk_hGM_4gdm-eChOscXPxSz-tCVHoHpS1YcbWq8pooFjECVImfrcXNIuKVwGd2ZOgHH-B63V5ec","version":2}} -->
