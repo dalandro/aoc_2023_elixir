@@ -121,30 +121,55 @@ defmodule PartOne do
   end
 
   def fill_in_area(graph) do
-    max_y = Enum.count(graph) - 1
-    max_x = Enum.count(hd(graph)) - 1
+    # max_y = Enum.count(graph) - 1
+    # max_x = Enum.count(hd(graph)) - 1
 
-    Enum.map(graph, fn row ->
-      Enum.reduce(row, {[], false, nil}, fn cell, {row, inside, coord_of_boundary_start} ->
+    rows_with_idx = Enum.with_index(graph)
+
+    Enum.map(rows_with_idx, fn {cols, ridx} ->
+      cols_with_idx = Enum.with_index(cols)
+
+      Enum.reduce(cols_with_idx, {[], false, hd(cols) == "#", nil}, fn {cell, cidx},
+                                                                       {row, inside, on_boundary,
+                                                                        boundary_start} ->
         # TODO: Consider last piece, make sure set to change state conservatively 
         # TODO: Run both horizontally and vertically, or make the alg consider prev cell north/south neighbor
-        case inside do
-          false ->
-            case cell do
-              "#" -> {[cell | row], true, cell}
-              "." -> {[cell | row], inside, cell}
+
+        case on_boundary do
+          true ->
+            if cell == "#" do
+              still_on_boundary(cell, row, inside, on_boundary, boundary_start)
+            else
+              # TODO: Fix this to consider not actually crossing in/out
+              # if WAS inside before
+              if inside do
+                {[cell | row], !inside, !on_boundary, nil}
+              else
+                {["#" | row], !inside, !on_boundary, nil}
+              end
             end
 
-          true ->
-            case cell do
-              "." ->
-                {["#" | row], inside, cell}
+          false ->
+            # TODO: REMOVE REDUNDANT CODE
 
-              "#" ->
-                if coord_of_boundary_start == "#" do
-                  {[cell | row], true, cell}
-                else
-                  {[cell | row], false, cell}
+            case inside do
+              false ->
+                case cell do
+                  "#" -> {[cell | row], inside, true, boundary_start(graph, cell, ridx, cidx)}
+                  "." -> still_fully_outside(cell, row, inside, on_boundary, boundary_start)
+                end
+
+              true ->
+                case cell do
+                  "." ->
+                    fully_inside(cell, row, inside, on_boundary, boundary_start)
+
+                  "#" ->
+                    if on_boundary do
+                      still_on_boundary(cell, row, inside, on_boundary, boundary_start)
+                    else
+                      {[cell | row], inside, true, boundary_start(graph, cell, ridx, cidx)}
+                    end
                 end
             end
         end
@@ -154,8 +179,31 @@ defmodule PartOne do
     end)
   end
 
+  # consider essential process
+  #  - crosses onto boundary 
+  #    - find out if we were going along a boundary then exited again
+  #         - this is the same for both when inside and out 
+
+  defp still_on_boundary(cell, row, inside, on_boundary, boundary_start),
+    do: {[cell | row], inside, on_boundary, boundary_start}
+
+  defp still_fully_outside(cell, row, inside, _on_boundary, _boundary_start),
+    do: {[cell | row], inside, false, nil}
+
+  defp fully_inside(_cell, row, inside, _on_boundary, _boundary_start),
+    do: {["#" | row], inside, false, nil}
+
+  defp boundary_start(graph, cell, ridx, cidx) do
+    %{
+      cell: cell,
+      cell_above: cell_at(graph, ridx - 1, cidx),
+      cell_below: cell_at(graph, ridx + 1, cidx)
+    }
+  end
+
   defp cell_at(graph, y, x) do
-    Enum.at(graph, y) |> Enum.at(x)
+    row = Enum.at(graph, y)
+    row && Enum.at(row, x)
   end
 
   defp sum_of_trenches(graph) do
@@ -345,6 +393,24 @@ defmodule PartOneTest do
                [".", "#", "#", "#", "#", "#", "#"]
              ]
     end
+
+    test "example with up, right, down" do
+      input = [
+        ["#", "#", "#", ".", "."],
+        ["#", ".", "#", ".", "."],
+        ["#", ".", "#", "#", "."],
+        ["#", ".", ".", "#", "."],
+        ["#", "#", "#", "#", "."]
+      ]
+
+      assert fill_in_area(input) == [
+               ["#", "#", "#", ".", "."],
+               ["#", "#", "#", ".", "."],
+               ["#", "#", "#", "#", "."],
+               ["#", "#", "#", "#", "."],
+               ["#", "#", "#", "#", "."]
+             ]
+    end
   end
 end
 
@@ -429,4 +495,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":10070,"stamp":{"token":"XCP.IADarR_m3OX39E8UjLiblZp2drtRh4tCJ3g9C2CSp6sJuJzlXVhmISuDGa7UtMrvxPQf3DdpFyBkHLw5VWUoH9NJHO527IXBXf_CXCGvnAhTT4hsVwQ","version":2}} -->
+<!-- livebook:{"offset":12450,"stamp":{"token":"XCP.vv5YX4T3qVWFMR3fYc0Uhv9bVB8IrLUedOxl409nr0Uy_5Q1Dvuf4VIZh9MmioeyctVVUx7R04MNtqegLrt-DmBuU9M72h3QP5whqoH5niViBunVyPQ","version":2}} -->
