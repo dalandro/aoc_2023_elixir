@@ -37,6 +37,33 @@ defmodule Parser do
       }
     end)
   end
+
+  def parse_pt2(input) do
+    String.split(input, "\n", trim: true)
+    |> Enum.map(fn line ->
+      [_, _, color] = String.split(line, " ", trim: true)
+
+      dist_and_dir_str = Regex.replace(~r/\(|\#|\)/, color, "")
+      {distance_encoded, direction_encoded} = String.split_at(dist_and_dir_str, 5)
+
+      %{
+        direction: decode_direction(direction_encoded),
+        distance: decode_distance(distance_encoded)
+      }
+    end)
+  end
+
+  defp decode_direction(direction_encoded) do
+    %{"0" => "R", "1" => "D", "2" => "L", "3" => "U"}
+    |> Map.get(direction_encoded)
+  end
+
+  defp decode_distance(distance_encoded) do
+    # String.to_integer(distance_encoded)
+    distance_encoded
+    |> Integer.parse(16)
+    |> elem(0)
+  end
 end
 ```
 
@@ -86,6 +113,27 @@ defmodule ParserTest do
   describe "parse/1" do
     test "simple example" do
       assert parse(@input) == @expected
+    end
+  end
+
+  describe "parse_pt2/1" do
+    test "simple example" do
+      assert parse_pt2(@input) == [
+               %{direction: "R", distance: 461_937},
+               %{direction: "D", distance: 56407},
+               %{direction: "R", distance: 356_671},
+               %{direction: "D", distance: 863_240},
+               %{direction: "R", distance: 367_720},
+               %{direction: "D", distance: 266_681},
+               %{direction: "L", distance: 577_262},
+               %{direction: "U", distance: 829_975},
+               %{direction: "L", distance: 112_010},
+               %{direction: "D", distance: 829_975},
+               %{direction: "L", distance: 491_645},
+               %{direction: "U", distance: 686_074},
+               %{direction: "L", distance: 5411},
+               %{direction: "U", distance: 500_254}
+             ]
     end
   end
 end
@@ -478,7 +526,280 @@ defmodule PartTwo do
     IO.puts("Result: #{run(input)}")
   end
 
-  def run(tiles) do
+  def run(input_string, parse_pt1: true) when is_bitstring(input_string),
+    do: run(Parser.parse(input_string))
+
+  def run(input_string) when is_bitstring(input_string),
+    do: run(Parser.parse_pt2(input_string))
+
+  def run(input) do
+    map_out_digging_perimeter(input)
+    |> fill_in_area()
+    |> sum_of_trenches()
+  end
+
+  def corners(input) do
+    initial_coord = %{y: 0, x: 0}
+
+    Enum.reduce(input, [initial_coord], fn %{direction: direction, distance: distance},
+                                           [%{y: last_y, x: last_x} | res] ->
+      new_coord =
+        case direction do
+          "R" -> %{y: last_y, x: last_x + distance}
+          "L" -> %{y: last_y, x: last_x - distance}
+          "D" -> %{y: last_y + distance, x: last_x}
+          "U" -> %{y: last_y - distance, x: last_x}
+        end
+
+      [new_coord | [%{y: last_y, x: last_x} | res]]
+    end)
+    |> Enum.reverse()
+  end
+
+  def intersections_with_y(corners, y) do
+    Enum.reduce(
+      corners |> Enum.with_index() |> tl(),
+      [],
+      fn {corner, idx}, res ->
+        # IO.inspect(%{corner: corner, prev_corner: prev_corner, res: res})
+
+        # %{res: [], corner: {0, 461937}, prev_corner: {0, 0}}
+
+        x =
+          cond do
+            corners_along_y?(prev_corner(corners, idx), corner, y) ->
+              x_range(prev_corner(corners, idx), corner)
+
+            corners_intersect_y?(prev_corner(corners, idx), corner, y) ->
+              x(corner)
+
+            true ->
+              nil
+          end
+
+        if x, do: [%{y: y, x: x} | res], else: res
+      end
+    )
+    |> merge_coordinates_into_covering_ranges()
+    |> Enum.reverse()
+    |> Enum.sort_by(&coord_sorter(&1))
+    |> Enum.uniq()
+  end
+
+  defp prev_corner(corners, idx), do: Enum.at(corners, idx - 1)
+
+  def ranges_between_intersections(intersections) do
+    Enum.reduce(intersections, {[], false, nil}, fn coord,
+                                                    {inside_ranges, currently_inside, prev_coord} ->
+      changing_between_inside_and_outside =
+        cond do
+          is_map(x(coord)) -> zigzag?(coord)
+          is_integer(x(coord)) -> true
+        end
+
+      new_currently_inside =
+        (!currently_inside && changing_between_inside_and_outside) ||
+          (currently_inside && !changing_between_inside_and_outside)
+
+      if new_currently_inside do
+        # Do not count yet, as we will know the quantity at the next iteration
+        {inside_ranges, new_currently_inside, coord}
+      else
+        {[range_between([coord, prev_coord]) | inside_ranges], new_currently_inside, coord}
+      end
+    end)
+    |> elem(0)
+    |> Enum.reverse()
+  end
+
+  defp y(%{y: y, x: _x}), do: y
+  defp x(%{y: _y, x: x}), do: x
+
+  defp corners_along_y?(corner1, corner2, y), do: y(corner2) == y(corner1) && y(corner2) == y
+
+  defp corners_intersect_y?(corner1, corner2, y) do
+    x(corner2) == x(corner1) && max(y(corner2), y(corner1)) >= y &&
+      min(y(corner2), y(corner1)) <= y
+  end
+
+  defp x_range(corner1, corner2) do
+    x1 = x(corner1)
+    x2 = x(corner2)
+    min(x1, x2)..max(x1, x2)
+  end
+
+  defp merge_coordinates_into_covering_ranges(corners) do
+    IO.inspect(%{corners: corners})
+
+    Enum.reject(corners, fn %{y: y, x: x} ->
+      Enum.count(corners, &coord_contains?(&1, y, x)) > 1
+    end)
+  end
+
+  defp coord_sorter(%{y: y, x: x1.._x2}), do: coord_sorter(%{y: y, x: x1})
+  defp coord_sorter(%{y: y, x: x}), do: {y, x}
+
+  defp coord_contains?(%{y: y1, x: x1..x2}, y, x), do: y1 == y && (x1 == x || x2 == x)
+  defp coord_contains?(%{y: y1, x: x1}, y, x), do: {y1, x1} == {y, x}
+
+  # TODO
+  defp max_y(), do: nil
+  # TODO
+  defp zigzag?(_coord), do: true
+
+  defp range_between([coord1, coord2]) do
+    [new_c1, new_c2] = Enum.sort_by([coord1, coord2], &coord_sorter(&1))
+    range_between(new_c1, new_c2)
+  end
+
+  defp range_between(%{y: y, x: _x1..x2}, coord), do: range_between(%{y: y, x: x2}, coord)
+  defp range_between(coord, %{y: y, x: x1.._x2}), do: range_between(coord, %{y: y, x: x1})
+  defp range_between(%{y: _y1, x: x1}, %{y: _y2, x: x2}) when x1 + 1 == x2, do: nil
+  defp range_between(%{y: _y1, x: x1}, %{y: _y2, x: x2}), do: (x1 + 1)..(x2 - 1)
+
+  ######################################
+
+  def map_out_digging_perimeter(input) do
+    digging_coordinates(input)
+    |> coordinates_to_graph()
+  end
+
+  def fill_in_area(graph) do
+    rows_with_idx = Enum.with_index(graph)
+
+    Enum.map(rows_with_idx, fn {cols, ridx} ->
+      cols_with_idx = Enum.with_index(cols)
+
+      Enum.reduce(
+        cols_with_idx,
+        {[], false, start_of_boundary(graph, hd(cols), ridx, 0)},
+        fn {cell, cidx}, {row, inside, start_of_boundary} ->
+          if on_boundary?(start_of_boundary) do
+            case cell do
+              "#" -> still_on_boundary(cell, row, inside, start_of_boundary)
+              "." -> now_off_boundary(graph, ridx, cidx, cell, row, inside, start_of_boundary)
+            end
+          else
+            case cell do
+              "#" ->
+                now_on_boundary(graph, ridx, cidx, cell, row, inside, start_of_boundary)
+
+              "." ->
+                if inside do
+                  fully_inside(cell, row, inside, start_of_boundary)
+                else
+                  fully_outside(cell, row, inside, start_of_boundary)
+                end
+            end
+          end
+        end
+      )
+      |> elem(0)
+      |> Enum.reverse()
+    end)
+  end
+
+  defp on_boundary?(start_of_boundary) do
+    start_of_boundary
+  end
+
+  defp now_on_boundary(graph, ridx, cidx, cell, row, inside, _start_of_boundary),
+    do: {[cell | row], inside, start_of_boundary(graph, cell, ridx, cidx)}
+
+  defp still_on_boundary(cell, row, inside, start_of_boundary),
+    do: {[cell | row], inside, start_of_boundary}
+
+  defp now_off_boundary(graph, end_ridx, end_cidx, cell, row, inside, start_of_boundary) do
+    if was_travelling_alongside_boundary?(end_ridx, end_cidx - 1, start_of_boundary) &&
+         boundary_180?(graph, end_ridx, end_cidx - 1, start_of_boundary) do
+      # if WAS inside before
+      if inside do
+        fully_inside(cell, row, inside, nil)
+      else
+        fully_outside(cell, row, inside, nil)
+      end
+    else
+      # if WAS inside before
+      if inside do
+        {[cell | row], !inside, nil}
+      else
+        {["#" | row], !inside, nil}
+      end
+    end
+  end
+
+  defp fully_outside(cell, row, inside, _start_of_boundary), do: {[cell | row], inside, nil}
+  defp fully_inside(_cell, row, inside, _start_of_boundary), do: {["#" | row], inside, nil}
+
+  defp start_of_boundary(graph, cell, ridx, cidx) do
+    if cell == "#" do
+      %{
+        cell_above: cell_at(graph, ridx - 1, cidx),
+        cell_below: cell_at(graph, ridx + 1, cidx),
+        ridx: ridx,
+        cidx: cidx
+      }
+    end
+  end
+
+  defp was_travelling_alongside_boundary?(_end_ridx, end_cidx, %{cidx: start_cidx}) do
+    start_cidx < end_cidx
+  end
+
+  defp boundary_180?(graph, end_ridx, end_cidx, %{
+         cell_above: start_cell_above,
+         cell_below: start_cell_below
+       }) do
+    (start_cell_below == "#" && cell_at(graph, end_ridx + 1, end_cidx) == "#") ||
+      (start_cell_above == "#" && cell_at(graph, end_ridx - 1, end_cidx) == "#")
+  end
+
+  defp cell_at(graph, y, x) do
+    row = Enum.at(graph, y)
+    row && Enum.at(row, x)
+  end
+
+  defp sum_of_trenches(graph) do
+    Enum.reduce(graph, 0, fn row, count ->
+      count + Enum.count(row, &(&1 == "#"))
+    end)
+  end
+
+  def digging_coordinates(input) do
+    start = {0, 0}
+    coords = [start]
+
+    Enum.reduce(input, {coords, start}, fn %{direction: dir, distance: dist},
+                                           {coords, current_coord} ->
+      {last_y, last_x} = current_coord
+
+      {coordinates_traversed, new_coord} =
+        case dir do
+          "R" -> {Enum.map((last_x + 1)..(last_x + dist), &{last_y, &1}), {last_y, last_x + dist}}
+          "L" -> {Enum.map((last_x - 1)..(last_x - dist), &{last_y, &1}), {last_y, last_x - dist}}
+          "D" -> {Enum.map((last_y + 1)..(last_y + dist), &{&1, last_x}), {last_y + dist, last_x}}
+          "U" -> {Enum.map((last_y - 1)..(last_y - dist), &{&1, last_x}), {last_y - dist, last_x}}
+        end
+
+      {coords ++ coordinates_traversed, new_coord}
+    end)
+    |> elem(0)
+    |> Enum.uniq()
+  end
+
+  defp coordinates_to_graph(coordinates) do
+    {{_, min_x}, {_, max_x}} = Enum.min_max_by(coordinates, fn {_y, x} -> x end)
+    {{min_y, _}, {max_y, _}} = Enum.min_max_by(coordinates, fn {y, _x} -> y end)
+
+    Enum.map(min_y..max_y, fn y ->
+      Enum.map(min_x..max_x, fn x ->
+        if {y, x} in coordinates do
+          "#"
+        else
+          "."
+        end
+      end)
+    end)
   end
 end
 ```
@@ -509,12 +830,141 @@ defmodule PartTwoTest do
   U 2 (#7a21e3)
   """
 
-  @input Parser.parse(@raw_input)
+  @input Parser.parse_pt2(@raw_input)
 
-  describe "run/1" do
+  # describe "run/1" do
+  #   test "main example" do
+  #     assert run(@raw_input) == 952408144115
+  #   end
+  # end
+
+  describe "run/2 with part one parser" do
     test "main example" do
-      assert run(@raw_input) == 94
+      assert run(@raw_input, parse_pt1: true) == 62
     end
+  end
+
+  describe "corners/1" do
+    test "main example" do
+      input = [
+        %{direction: "R", distance: 461_937},
+        %{direction: "D", distance: 56407},
+        #
+        %{direction: "R", distance: 356_671},
+        #
+        %{direction: "D", distance: 863_240},
+        #
+        %{direction: "R", distance: 367_720},
+        #
+        %{direction: "D", distance: 266_681},
+        #
+        %{direction: "L", distance: 577_262},
+        #
+        %{direction: "U", distance: 829_975},
+        #
+        %{direction: "L", distance: 112_010},
+        %{direction: "D", distance: 829_975},
+        %{direction: "L", distance: 491_645},
+        %{direction: "U", distance: 686_074},
+        %{direction: "L", distance: 5411},
+        %{direction: "U", distance: 500_254}
+      ]
+
+      assert Enum.take(corners(input), 10) == [
+               %{y: 0, x: 0},
+               %{y: 0, x: 461_937},
+               %{y: 56407, x: 461_937},
+               %{y: 56407, x: 461_937 + 356_671},
+               %{y: 56407 + 863_240, x: 461_937 + 356_671},
+               %{y: 56407 + 863_240, x: 461_937 + 356_671 + 367_720},
+               %{y: 56407 + 863_240 + 266_681, x: 461_937 + 356_671 + 367_720},
+               %{y: 56407 + 863_240 + 266_681, x: 461_937 + 356_671 + 367_720 - 577_262},
+               %{
+                 y: 56407 + 863_240 + 266_681 - 829_975,
+                 x: 461_937 + 356_671 + 367_720 - 577_262
+               },
+               %{
+                 y: 56407 + 863_240 + 266_681 - 829_975,
+                 x: 461_937 + 356_671 + 367_720 - 577_262 - 112_010
+               }
+             ]
+    end
+  end
+
+  # find first intersection of horizontal line with a point on graph, based on y
+  #   if intersection is with a vertical line
+  #     count all points before the next intersection, repeat
+  #   else, there's two at least next to each other (i.e. its a horizontal range)
+  #     check if it does a 180 or zigzag (i.e. is the next and previous ranges going same or diff dirn)
+  #       if zigzag
+  #         count all points before the next intersection, repeat
+  #       else, find next intersection, repeat
+
+  @corners corners(@input)
+
+  describe "intersections_with_y/2" do
+    #  0     {0, 0},>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{0, 461937}
+    #  1       ^                                      v
+    #          ^                                      v
+    #          ^                              {56407, 461937}>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{56407, 818608}   
+    #          ^                                                                                                 v
+    #          ^                                                                                                 v
+    #          ^                                             {356353, 497056}<<<<<<<<<<<{356353, 609066}         v
+    #          ^                                                    v                          ^                 v
+    #          ^                                                    v                          ^                 v
+    #          ^                                                    v                          ^                 v
+    #   {500254, 0}<<<<{500254, 5411}                               v                          ^                 v
+    #                         ^                                     v                          ^                 v
+    #                         ^                                     v                          ^                 v
+    #                         ^                                     v                          ^          {919647, 818608}>>>>>>>>>>>>{919647, 1186328}
+    #                         ^                                     v                          ^                                              v
+    #                         ^                                     v                          ^                                              v
+    #                         ^                                     v                          ^                                              v
+    #                  {1186328, 5411}<<<<<<<<<<<<<<<<<<<<<<{1186328, 497056}          {1186328, 609066}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<{1186328, 1186328}
+
+    test "example containing a point i.e., intersection through a vertical line" do
+      IO.inspect(@corners)
+      assert intersections_with_y(@corners, 1) == [%{y: 1, x: 0}, %{y: 1, x: 461_937}]
+    end
+
+    # test "example containing a range, i.e., intersection along a horizontal line" do
+    #   assert intersections_with_y(@corners, 0) == [%{y: 0, x: 0..461_937, shape: :"180"}]
+    # end
+
+    # test "multiple including zigzag" do
+    #   assert intersections_with_y(@corners, 500254) == [%{y: 500254, x: 0..5411, shape: :zigzag}, 
+    #                                                     %{y: 500254, x: 497056}, 
+    #                                                     %{y: 500254, x: 609066}, 
+    #                                                     %{y: 500254, x: 818608}]
+    # end
+
+    test "multiple including 180" do
+      assert intersections_with_y(@corners, 356_353) == [
+               %{y: 356_353, x: 0},
+               %{y: 356_353, x: 497_056..609_066, shape: :"180"},
+               %{y: 356_353, x: 818_608}
+             ]
+    end
+  end
+
+  describe "ranges_between_intersections/1" do
+    # test "" do
+    #   assert ranges_between_intersections([%{y: 1, x: 0}, 
+    #                                        %{y: 1, x: 461_937}]) 
+    #   == [1..461_936]
+
+    #   assert ranges_between_intersections([%{y: 0, x: 0..461_937, shape: :"180"}]) 
+    #   == []
+    #   assert ranges_between_intersections([%{y: 500254, x: 0..5411, shape: :zigzag}, 
+    #                                        %{y: 500254, x: 497056}, 
+    #                                        %{y: 500254, x: 609066}, 
+    #                                        %{y: 500254, x: 818608}]) 
+    #   == [5412..497055, 609067..818607]
+    #   assert ranges_between_intersections([%{y: 356353, x: 0}, 
+    #                                        %{y: 356353, x: 497056..609066, shape: :"180"}, 
+    #                                        %{y: 356353, x: 818608}]) 
+    #   == [1..497055, 609067..818607]
+    # end
   end
 end
 
@@ -527,4 +977,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":13230,"stamp":{"token":"XCP.u0yP2ptjXqfcABj3cQe_rVTP1eCOGIaNIhfiXwaV4ARPyr5-VkQxRYMt_TJmNkhjmD5DV7EFU4mKahc7Z-Zx2rZGt7R1uwNZuZOoJYKQjvDHJCTxLyA","version":2}} -->
+<!-- livebook:{"offset":29903,"stamp":{"token":"XCP.BJO-OqK_CBk_h9paS5QCMeqGKVrBbjkbcZC_S2uCcJKk0DcMC6qRRaZXByUKic5GLXbSNnkMId905p_XtSQHNQ9O5QWUz7ucLluK3uDSw_Ip-jQAQ5I","version":2}} -->
