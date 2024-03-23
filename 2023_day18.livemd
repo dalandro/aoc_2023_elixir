@@ -533,9 +533,11 @@ defmodule PartTwo do
     do: run(Parser.parse_pt2(input_string))
 
   def run(input) do
-    map_out_digging_perimeter(input)
-    |> fill_in_area()
-    |> sum_of_trenches()
+    corners = corners(input)
+
+    Enum.reduce(0..max_y(corners), 0, fn y, sum ->
+      sum + blocks_within_shape_based_on_intersections(intersections_with_y(corners, y))
+    end)
   end
 
   def corners(input) do
@@ -608,13 +610,6 @@ defmodule PartTwo do
     |> Enum.uniq()
   end
 
-  defp prev_corner(corners, idx), do: Enum.at(corners, idx - 1)
-  defp next_corner(corners, idx), do: Enum.at(corners, idx + 1)
-
-  defp shape_between(%{y: _y1, x: _x1, direction_to: dir1}, %{y: _y2, x: _x2, direction_to: dir2}) do
-    if dir1 == dir2, do: :zigzag, else: :"180"
-  end
-
   def blocks_within_shape_based_on_intersections(intersections) do
     Enum.reduce(
       intersections,
@@ -657,6 +652,13 @@ defmodule PartTwo do
     |> Enum.sum()
   end
 
+  defp prev_corner(corners, idx), do: Enum.at(corners, idx - 1)
+  defp next_corner(corners, idx), do: Enum.at(corners, idx + 1)
+
+  defp shape_between(%{y: _y1, x: _x1, direction_to: dir1}, %{y: _y2, x: _x2, direction_to: dir2}) do
+    if dir1 == dir2, do: :zigzag, else: :"180"
+  end
+
   defp y(%{y: y, x: _x}), do: y
   defp x(%{y: _y, x: x}), do: x
 
@@ -684,8 +686,11 @@ defmodule PartTwo do
   defp coord_contains?(%{y: y1, x: x1..x2}, y, x), do: y1 == y && (x1 == x || x2 == x)
   defp coord_contains?(%{y: y1, x: x1}, y, x), do: {y1, x1} == {y, x}
 
-  # TODO
-  defp max_y(), do: nil
+  def max_y(corners),
+    do: Enum.max_by(corners, fn corner -> Map.get(corner, :y) end) |> Map.get(:y)
+
+  def max_x(corners),
+    do: Enum.max_by(corners, fn corner -> Map.get(corner, :x) end) |> Map.get(:x)
 
   defp zigzag?(coord), do: Map.get(coord, :shape) == :zigzag
 
@@ -698,151 +703,6 @@ defmodule PartTwo do
   defp range_between(coord, %{y: y, x: _x1..x2}), do: range_between(coord, %{y: y, x: x2})
   defp range_between(%{y: _y1, x: x1}, %{y: _y2, x: x2}) when x1 + 1 == x2, do: nil
   defp range_between(%{y: _y1, x: x1}, %{y: _y2, x: x2}), do: (x1 + 1)..(x2 + 1)
-
-  ######################################
-
-  def map_out_digging_perimeter(input) do
-    digging_coordinates(input)
-    |> coordinates_to_graph()
-  end
-
-  def fill_in_area(graph) do
-    rows_with_idx = Enum.with_index(graph)
-
-    Enum.map(rows_with_idx, fn {cols, ridx} ->
-      cols_with_idx = Enum.with_index(cols)
-
-      Enum.reduce(
-        cols_with_idx,
-        {[], false, start_of_boundary(graph, hd(cols), ridx, 0)},
-        fn {cell, cidx}, {row, inside, start_of_boundary} ->
-          if on_boundary?(start_of_boundary) do
-            case cell do
-              "#" -> still_on_boundary(cell, row, inside, start_of_boundary)
-              "." -> now_off_boundary(graph, ridx, cidx, cell, row, inside, start_of_boundary)
-            end
-          else
-            case cell do
-              "#" ->
-                now_on_boundary(graph, ridx, cidx, cell, row, inside, start_of_boundary)
-
-              "." ->
-                if inside do
-                  fully_inside(cell, row, inside, start_of_boundary)
-                else
-                  fully_outside(cell, row, inside, start_of_boundary)
-                end
-            end
-          end
-        end
-      )
-      |> elem(0)
-      |> Enum.reverse()
-    end)
-  end
-
-  defp on_boundary?(start_of_boundary) do
-    start_of_boundary
-  end
-
-  defp now_on_boundary(graph, ridx, cidx, cell, row, inside, _start_of_boundary),
-    do: {[cell | row], inside, start_of_boundary(graph, cell, ridx, cidx)}
-
-  defp still_on_boundary(cell, row, inside, start_of_boundary),
-    do: {[cell | row], inside, start_of_boundary}
-
-  defp now_off_boundary(graph, end_ridx, end_cidx, cell, row, inside, start_of_boundary) do
-    if was_travelling_alongside_boundary?(end_ridx, end_cidx - 1, start_of_boundary) &&
-         boundary_180?(graph, end_ridx, end_cidx - 1, start_of_boundary) do
-      # if WAS inside before
-      if inside do
-        fully_inside(cell, row, inside, nil)
-      else
-        fully_outside(cell, row, inside, nil)
-      end
-    else
-      # if WAS inside before
-      if inside do
-        {[cell | row], !inside, nil}
-      else
-        {["#" | row], !inside, nil}
-      end
-    end
-  end
-
-  defp fully_outside(cell, row, inside, _start_of_boundary), do: {[cell | row], inside, nil}
-  defp fully_inside(_cell, row, inside, _start_of_boundary), do: {["#" | row], inside, nil}
-
-  defp start_of_boundary(graph, cell, ridx, cidx) do
-    if cell == "#" do
-      %{
-        cell_above: cell_at(graph, ridx - 1, cidx),
-        cell_below: cell_at(graph, ridx + 1, cidx),
-        ridx: ridx,
-        cidx: cidx
-      }
-    end
-  end
-
-  defp was_travelling_alongside_boundary?(_end_ridx, end_cidx, %{cidx: start_cidx}) do
-    start_cidx < end_cidx
-  end
-
-  defp boundary_180?(graph, end_ridx, end_cidx, %{
-         cell_above: start_cell_above,
-         cell_below: start_cell_below
-       }) do
-    (start_cell_below == "#" && cell_at(graph, end_ridx + 1, end_cidx) == "#") ||
-      (start_cell_above == "#" && cell_at(graph, end_ridx - 1, end_cidx) == "#")
-  end
-
-  defp cell_at(graph, y, x) do
-    row = Enum.at(graph, y)
-    row && Enum.at(row, x)
-  end
-
-  defp sum_of_trenches(graph) do
-    Enum.reduce(graph, 0, fn row, count ->
-      count + Enum.count(row, &(&1 == "#"))
-    end)
-  end
-
-  def digging_coordinates(input) do
-    start = {0, 0}
-    coords = [start]
-
-    Enum.reduce(input, {coords, start}, fn %{direction: dir, distance: dist},
-                                           {coords, current_coord} ->
-      {last_y, last_x} = current_coord
-
-      {coordinates_traversed, new_coord} =
-        case dir do
-          "R" -> {Enum.map((last_x + 1)..(last_x + dist), &{last_y, &1}), {last_y, last_x + dist}}
-          "L" -> {Enum.map((last_x - 1)..(last_x - dist), &{last_y, &1}), {last_y, last_x - dist}}
-          "D" -> {Enum.map((last_y + 1)..(last_y + dist), &{&1, last_x}), {last_y + dist, last_x}}
-          "U" -> {Enum.map((last_y - 1)..(last_y - dist), &{&1, last_x}), {last_y - dist, last_x}}
-        end
-
-      {coords ++ coordinates_traversed, new_coord}
-    end)
-    |> elem(0)
-    |> Enum.uniq()
-  end
-
-  defp coordinates_to_graph(coordinates) do
-    {{_, min_x}, {_, max_x}} = Enum.min_max_by(coordinates, fn {_y, x} -> x end)
-    {{min_y, _}, {max_y, _}} = Enum.min_max_by(coordinates, fn {y, _x} -> y end)
-
-    Enum.map(min_y..max_y, fn y ->
-      Enum.map(min_x..max_x, fn x ->
-        if {y, x} in coordinates do
-          "#"
-        else
-          "."
-        end
-      end)
-    end)
-  end
 end
 ```
 
@@ -874,17 +734,17 @@ defmodule PartTwoTest do
 
   @input Parser.parse_pt2(@raw_input)
 
-  # describe "run/1" do
-  #   test "main example" do
-  #     assert run(@raw_input) == 952408144115
-  #   end
-  # end
+  describe "run/1" do
+    test "main example" do
+      assert run(@raw_input) == 952_408_144_115
+    end
+  end
 
-  # describe "run/2 with part one parser" do
-  #   test "main example" do
-  #     assert run(@raw_input, parse_pt1: true) == 62
-  #   end
-  # end
+  describe "run/2 with part one parser" do
+    test "main example" do
+      assert run(@raw_input, parse_pt1: true) == 62
+    end
+  end
 
   describe "corners/1" do
     test "main example" do
@@ -930,15 +790,6 @@ defmodule PartTwoTest do
              ]
     end
   end
-
-  # find first intersection of horizontal line with a point on graph, based on y
-  #   if intersection is with a vertical line
-  #     count all points before the next intersection, repeat
-  #   else, there's two at least next to each other (i.e. its a horizontal range)
-  #     check if it does a 180 or zigzag (i.e. is the next and previous ranges going same or diff dirn)
-  #       if zigzag
-  #         count all points before the next intersection, repeat
-  #       else, find next intersection, repeat
 
   @corners corners(@input)
 
@@ -1048,19 +899,7 @@ defmodule PartTwoTest do
     end
   end
 
-  describe "extra load" do
-    test "stuff" do
-      Enum.map(0..1_186_328, fn _ ->
-        intersections_with_y(@corners, 356_353)
-
-        blocks_within_shape_based_on_intersections([
-          %{y: 356_353, x: 0, shape: :point},
-          %{y: 356_353, x: 497_056..609_066, shape: :"180"},
-          %{y: 356_353, x: 818_608, shape: :point}
-        ])
-      end)
-    end
-  end
+  # IO.inspect(%{max_y: PartTwo.max_y(@corners), max_x: PartTwo.max_x(@corners)})
 end
 
 ExUnit.run()
@@ -1070,6 +909,17 @@ ExUnit.run()
 
 ```elixir
 PartTwo.solve(puzzle_input)
+# corners = PartTwo.corners(Parser.parse_pt2(puzzle_input))
+# IO.inspect(corners)
+# IO.inspect(%{max_y: PartTwo.max_y(corners), max_x: PartTwo.max_x(corners)})
+# %{max_y: 4817345, max_x: 10272455}
+
+# simple example is 
+# %{max_y: 1186328, max_x: 1186328}
+
+# so it's 35x in dimension roughly 
+# should take roughly 5 * 35 VERY ROUGHLY - depends on many factors
+# = 175s = nearly 3m
 ```
 
-<!-- livebook:{"offset":32985,"stamp":{"token":"XCP.zlFE8UY-m92jinAGPmrwMgrq4c-W9A5XYeEJCgiKbFg4Q0DEDeLM0Cr05_jrnent6wf8zH63q39oQT-bH1tv4C-BdaBUvLUY-uI0TkABThZLGPh9o2c","version":2}} -->
+<!-- livebook:{"offset":28323,"stamp":{"token":"XCP.7DAGZJve_2OzYPnPm5y7r6aXxrdOoKP4x9BPUcPjgb-NPEwsMbdH052CYVXWQgSObn25HPF7FHALiDodBNJQy3tRhV2PAAxzUIxKMY2JwHd2Yezs87U","version":2}} -->
