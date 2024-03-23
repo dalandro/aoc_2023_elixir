@@ -534,9 +534,15 @@ defmodule PartTwo do
 
   def run(input) do
     corners = corners(input)
+    y_ranges = y_ranges(corners)
 
-    Enum.reduce(0..max_y(corners), 0, fn y, sum ->
-      sum + blocks_within_shape_based_on_intersections(intersections_with_y(corners, y))
+    Enum.reduce(y_ranges, 0, fn %{y_start: y_start, y_end: y_end}, sum ->
+      blocks_along_single_line =
+        blocks_within_shape_based_on_intersections(intersections_with_y(corners, y_start))
+
+      blocks_along_y_range = blocks_along_single_line * (y_end - y_start + 1)
+
+      sum + blocks_along_y_range
     end)
   end
 
@@ -579,6 +585,28 @@ defmodule PartTwo do
     end)
     |> Enum.reverse()
     |> tl()
+  end
+
+  # Blocks include horizontal lines, (x by 1 dimension), and block spaces between the lines 
+  def y_ranges(corners) do
+    ys =
+      Enum.map(corners, fn corner -> Map.get(corner, :y) end)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    first_y = hd(ys)
+    first_range = %{y_start: first_y, y_end: first_y}
+
+    Enum.reduce(tl(ys), {[first_range], first_y}, fn y, {res, prev_y} ->
+      range_on_y = %{y_start: y, y_end: y}
+      range_between_ys = %{y_start: prev_y + 1, y_end: y - 1}
+
+      {
+        [range_on_y | [range_between_ys | res]],
+        y
+      }
+    end)
+    |> elem(0)
   end
 
   def intersections_with_y(corners, y) do
@@ -814,8 +842,6 @@ defmodule PartTwoTest do
     #                  {1186328, 5411}<<<<<<<<<<<<<<<<<<<<<<{1186328, 497056}          {1186328, 609066}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<{1186328, 1186328}
 
     test "example containing a point i.e., intersection through a vertical line" do
-      IO.inspect(@corners)
-
       assert intersections_with_y(@corners, 1) == [
                %{y: 1, x: 0, shape: :point},
                %{y: 1, x: 461_937, shape: :point}
@@ -898,8 +924,6 @@ defmodule PartTwoTest do
                818_608 - 0 + 1
     end
   end
-
-  # IO.inspect(%{max_y: PartTwo.max_y(@corners), max_x: PartTwo.max_x(@corners)})
 end
 
 ExUnit.run()
@@ -909,17 +933,6 @@ ExUnit.run()
 
 ```elixir
 PartTwo.solve(puzzle_input)
-# corners = PartTwo.corners(Parser.parse_pt2(puzzle_input))
-# IO.inspect(corners)
-# IO.inspect(%{max_y: PartTwo.max_y(corners), max_x: PartTwo.max_x(corners)})
-# %{max_y: 4817345, max_x: 10272455}
-
-# simple example is 
-# %{max_y: 1186328, max_x: 1186328}
-
-# so it's 35x in dimension roughly 
-# should take roughly 5 * 35 VERY ROUGHLY - depends on many factors
-# = 175s = nearly 3m
 ```
 
-<!-- livebook:{"offset":28323,"stamp":{"token":"XCP.7DAGZJve_2OzYPnPm5y7r6aXxrdOoKP4x9BPUcPjgb-NPEwsMbdH052CYVXWQgSObn25HPF7FHALiDodBNJQy3tRhV2PAAxzUIxKMY2JwHd2Yezs87U","version":2}} -->
+<!-- livebook:{"offset":28630,"stamp":{"token":"XCP.PLWmR_FFd-Waf5LUaPDCKER8y6yQ5LwE6E5i-GtPlrXd0GyuU5calHePx3MDrSJIKaFfkz62NsQg4XYD0rkStLo7WJU89mduqcoAeGdz75RGfVAP4VA","version":2}} -->
