@@ -523,7 +523,18 @@ PartOne.solve(puzzle_input)
 defmodule PartTwo do
   def solve(input) do
     IO.puts("--- Part Two ---")
-    IO.puts("Result: #{run(input)}")
+    IO.puts("Result: #{run_with_shoelace(input)}")
+  end
+
+  def run_with_shoelace(input_string) when is_bitstring(input_string),
+    do: run(Parser.parse_pt2(input_string))
+
+  def run_with_shoelace(input) do
+    corners(input)
+    |> Enum.take_every(2)
+    |> Enum.map(fn [%{x: x1, y: y1}, %{x: x2, y: y2}] -> x1 * y2 - y1 * x2 end)
+    |> Enum.sum()
+    |> div(2)
   end
 
   def run(input_string, parse_pt1: true) when is_bitstring(input_string),
@@ -768,6 +779,12 @@ defmodule PartTwoTest do
     end
   end
 
+  describe "run_with_shoelace/1" do
+    test "main example" do
+      assert run_with_shoelace(@raw_input) == 952_408_144_115
+    end
+  end
+
   describe "run/2 with part one parser" do
     test "main example" do
       assert run(@raw_input, parse_pt1: true) == 62
@@ -935,4 +952,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":28630,"stamp":{"token":"XCP.PLWmR_FFd-Waf5LUaPDCKER8y6yQ5LwE6E5i-GtPlrXd0GyuU5calHePx3MDrSJIKaFfkz62NsQg4XYD0rkStLo7WJU89mduqcoAeGdz75RGfVAP4VA","version":2}} -->
+<!-- livebook:{"offset":29098,"stamp":{"token":"XCP.0-Gk4aarp6SuwxBC-DN_mrr984-dlaTEs_c_NtiUoY6QgoG1XRabomPT-n8AfZymyWs8lQluA9Fuw_-28ieWQh0vsOLlgbK_k3AQdelNGWUyi0f4Qpg","version":2}} -->
