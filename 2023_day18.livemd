@@ -532,7 +532,7 @@ defmodule PartTwo do
   def run_with_shoelace(input) do
     corners(input)
     |> Enum.take_every(2)
-    |> Enum.map(fn [%{x: x1, y: y1}, %{x: x2, y: y2}] -> x1 * y2 - y1 * x2 end)
+    |> Enum.map(fn [%{x: x1, y: y1}, %{x: x2, y: y2}] -> (y1 + y2) * (x1 - x2) end)
     |> Enum.sum()
     |> div(2)
   end
@@ -952,4 +952,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":29098,"stamp":{"token":"XCP.0-Gk4aarp6SuwxBC-DN_mrr984-dlaTEs_c_NtiUoY6QgoG1XRabomPT-n8AfZymyWs8lQluA9Fuw_-28ieWQh0vsOLlgbK_k3AQdelNGWUyi0f4Qpg","version":2}} -->
+<!-- livebook:{"offset":29102,"stamp":{"token":"XCP.wsjRaEh92_W2DwvJ5bOgqXfkl99xOIc8ko2AEOv3V8Hjx3q9r76-HQYs59Pc6j4oPSOGL3bVwuusqWsRbeYKlBPMUfd4gDHUYj5yhjruBDVcRBVevS0","version":2}} -->
