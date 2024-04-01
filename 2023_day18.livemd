@@ -523,18 +523,7 @@ PartOne.solve(puzzle_input)
 defmodule PartTwo do
   def solve(input) do
     IO.puts("--- Part Two ---")
-    IO.puts("Result: #{run_with_shoelace(input)}")
-  end
-
-  def run_with_shoelace(input_string) when is_bitstring(input_string),
-    do: run(Parser.parse_pt2(input_string))
-
-  def run_with_shoelace(input) do
-    corners(input)
-    |> Enum.take_every(2)
-    |> Enum.map(fn [%{x: x1, y: y1}, %{x: x2, y: y2}] -> (y1 + y2) * (x1 - x2) end)
-    |> Enum.sum()
-    |> div(2)
+    IO.puts("Result: #{run(input)}")
   end
 
   def run(input_string, parse_pt1: true) when is_bitstring(input_string),
@@ -544,16 +533,30 @@ defmodule PartTwo do
     do: run(Parser.parse_pt2(input_string))
 
   def run(input) do
-    corners = corners(input)
-    y_ranges = y_ranges(corners)
+    # A = i + (b/2) - 1
+    # -> The area A of a polygon
+    #    is equal to the inner points i, + half the number of outer points b, minus 1
+    #        -> We are looking discrete boxes within the border, i, and on the border, b
+    a = shoelace_area(corners(input))
+    b = perimeter(input)
+    i = a - div(b, 2) + 1
 
-    Enum.reduce(y_ranges, 0, fn %{y_start: y_start, y_end: y_end}, sum ->
-      blocks_along_single_line =
-        blocks_within_shape_based_on_intersections(intersections_with_y(corners, y_start))
+    i + b
+  end
 
-      blocks_along_y_range = blocks_along_single_line * (y_end - y_start + 1)
+  defp shoelace_area(corners) do
+    corners
+    |> Enum.chunk_every(2, 1, [hd(corners)])
+    |> Enum.map(fn [%{x: x1, y: y1, direction_to: _}, %{x: x2, y: y2, direction_to: _}] ->
+      (y1 + y2) * (x1 - x2)
+    end)
+    |> Enum.sum()
+    |> div(2)
+  end
 
-      sum + blocks_along_y_range
+  defp perimeter(input) do
+    Enum.reduce(input, 0, fn %{direction: _direction, distance: distance}, sum ->
+      sum + distance
     end)
   end
 
@@ -597,151 +600,6 @@ defmodule PartTwo do
     |> Enum.reverse()
     |> tl()
   end
-
-  # Blocks include horizontal lines, (x by 1 dimension), and block spaces between the lines 
-  def y_ranges(corners) do
-    ys =
-      Enum.map(corners, fn corner -> Map.get(corner, :y) end)
-      |> Enum.uniq()
-      |> Enum.sort()
-
-    first_y = hd(ys)
-    first_range = %{y_start: first_y, y_end: first_y}
-
-    Enum.reduce(tl(ys), {[first_range], first_y}, fn y, {res, prev_y} ->
-      range_on_y = %{y_start: y, y_end: y}
-      range_between_ys = %{y_start: prev_y + 1, y_end: y - 1}
-
-      {
-        [range_on_y | [range_between_ys | res]],
-        y
-      }
-    end)
-    |> elem(0)
-  end
-
-  def intersections_with_y(corners, y) do
-    Enum.reduce(
-      corners |> Enum.with_index(),
-      [],
-      fn {corner, idx}, res ->
-        prev_corner = prev_corner(corners, idx)
-
-        {x, shape} =
-          cond do
-            corners_along_y?(prev_corner, corner, y) ->
-              {x_range(prev_corner, corner),
-               shape_between(prev_corner, next_corner(corners, idx))}
-
-            y_crosses_between_corners?(prev_corner, corner, y) ->
-              {x(corner), :point}
-
-            true ->
-              {nil, nil}
-          end
-
-        if x, do: [%{y: y, x: x, shape: shape} | res], else: res
-      end
-    )
-    |> merge_coordinates_into_covering_ranges()
-    |> Enum.reverse()
-    |> Enum.sort_by(&coord_sorter(&1))
-    |> Enum.uniq()
-  end
-
-  def blocks_within_shape_based_on_intersections(intersections) do
-    Enum.reduce(
-      intersections,
-      {[], false, nil},
-      fn coord, {inside_ranges, currently_inside, prev_coord} ->
-        changing_between_inside_and_outside =
-          cond do
-            is_map(x(coord)) -> zigzag?(coord)
-            is_integer(x(coord)) -> true
-          end
-
-        cond do
-          # Staying outside
-          !currently_inside && !changing_between_inside_and_outside ->
-            # Need to count the 180
-            # continue on merry way to explore
-            if is_map(x(coord)) && !zigzag?(coord) do
-              {[x(coord) | inside_ranges], false, nil}
-            else
-              {inside_ranges, false, nil}
-            end
-
-          # Going inside
-          !currently_inside && changing_between_inside_and_outside ->
-            {inside_ranges, true, coord}
-
-          # Staying inside
-          currently_inside && !changing_between_inside_and_outside ->
-            {inside_ranges, true, prev_coord}
-
-          # Going outside
-          currently_inside && changing_between_inside_and_outside ->
-            {[range_between([prev_coord, coord]) | inside_ranges], false, nil}
-        end
-      end
-    )
-    |> elem(0)
-    |> Enum.reverse()
-    |> Enum.map(fn range -> Range.size(range) end)
-    |> Enum.sum()
-  end
-
-  defp prev_corner(corners, idx), do: Enum.at(corners, idx - 1)
-  defp next_corner(corners, idx), do: Enum.at(corners, idx + 1)
-
-  defp shape_between(%{y: _y1, x: _x1, direction_to: dir1}, %{y: _y2, x: _x2, direction_to: dir2}) do
-    if dir1 == dir2, do: :zigzag, else: :"180"
-  end
-
-  defp y(%{y: y, x: _x}), do: y
-  defp x(%{y: _y, x: x}), do: x
-
-  defp corners_along_y?(corner1, corner2, y), do: y(corner2) == y(corner1) && y(corner2) == y
-
-  defp y_crosses_between_corners?(corner1, corner2, y) do
-    x(corner2) == x(corner1) && max(y(corner2), y(corner1)) > y && min(y(corner2), y(corner1)) < y
-  end
-
-  defp x_range(corner1, corner2) do
-    x1 = x(corner1)
-    x2 = x(corner2)
-    min(x1, x2)..max(x1, x2)
-  end
-
-  defp merge_coordinates_into_covering_ranges(corners) do
-    Enum.reject(corners, fn %{y: y, x: x} ->
-      Enum.count(corners, &coord_contains?(&1, y, x)) > 1
-    end)
-  end
-
-  defp coord_sorter(%{y: y, x: _x1..x2}), do: coord_sorter(%{y: y, x: x2})
-  defp coord_sorter(%{y: y, x: x}), do: {y, x}
-
-  defp coord_contains?(%{y: y1, x: x1..x2}, y, x), do: y1 == y && (x1 == x || x2 == x)
-  defp coord_contains?(%{y: y1, x: x1}, y, x), do: {y1, x1} == {y, x}
-
-  def max_y(corners),
-    do: Enum.max_by(corners, fn corner -> Map.get(corner, :y) end) |> Map.get(:y)
-
-  def max_x(corners),
-    do: Enum.max_by(corners, fn corner -> Map.get(corner, :x) end) |> Map.get(:x)
-
-  defp zigzag?(coord), do: Map.get(coord, :shape) == :zigzag
-
-  defp range_between([coord1, coord2]) do
-    [new_c1, new_c2] = Enum.sort_by([coord1, coord2], &coord_sorter(&1))
-    range_between(new_c1, new_c2)
-  end
-
-  defp range_between(%{y: y, x: x1.._x2}, coord), do: range_between(%{y: y, x: x1}, coord)
-  defp range_between(coord, %{y: y, x: _x1..x2}), do: range_between(coord, %{y: y, x: x2})
-  defp range_between(%{y: _y1, x: x1}, %{y: _y2, x: x2}) when x1 + 1 == x2, do: nil
-  defp range_between(%{y: _y1, x: x1}, %{y: _y2, x: x2}), do: (x1 + 1)..(x2 + 1)
 end
 ```
 
@@ -771,17 +629,9 @@ defmodule PartTwoTest do
   U 2 (#7a21e3)
   """
 
-  @input Parser.parse_pt2(@raw_input)
-
   describe "run/1" do
     test "main example" do
       assert run(@raw_input) == 952_408_144_115
-    end
-  end
-
-  describe "run_with_shoelace/1" do
-    test "main example" do
-      assert run_with_shoelace(@raw_input) == 952_408_144_115
     end
   end
 
@@ -835,112 +685,6 @@ defmodule PartTwoTest do
              ]
     end
   end
-
-  @corners corners(@input)
-
-  describe "intersections_with_y/2" do
-    #  0     {0, 0},>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{0, 461937}
-    #  1       ^                                      v
-    #          ^                                      v
-    #          ^                              {56407, 461937}>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{56407, 818608}   
-    #          ^                                                                                                 v
-    #          ^                                                                                                 v
-    #          ^                                             {356353, 497056}<<<<<<<<<<<{356353, 609066}         v
-    #          ^                                                    v                          ^                 v
-    #          ^                                                    v                          ^                 v
-    #          ^                                                    v                          ^                 v
-    #   {500254, 0}<<<<{500254, 5411}                               v                          ^                 v
-    #                         ^                                     v                          ^                 v
-    #                         ^                                     v                          ^                 v
-    #                         ^                                     v                          ^          {919647, 818608}>>>>>>>>>>>>{919647, 1186328}
-    #                         ^                                     v                          ^                                              v
-    #                         ^                                     v                          ^                                              v
-    #                         ^                                     v                          ^                                              v
-    #                  {1186328, 5411}<<<<<<<<<<<<<<<<<<<<<<{1186328, 497056}          {1186328, 609066}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<{1186328, 1186328}
-
-    test "example containing a point i.e., intersection through a vertical line" do
-      assert intersections_with_y(@corners, 1) == [
-               %{y: 1, x: 0, shape: :point},
-               %{y: 1, x: 461_937, shape: :point}
-             ]
-    end
-
-    test "example containing a range, i.e., intersection along a horizontal line" do
-      assert intersections_with_y(@corners, 0) == [%{y: 0, x: 0..461_937, shape: :"180"}]
-    end
-
-    test "multiple including zigzag" do
-      assert intersections_with_y(@corners, 500_254) == [
-               %{y: 500_254, x: 0..5411, shape: :zigzag},
-               %{y: 500_254, x: 497_056, shape: :point},
-               %{y: 500_254, x: 609_066, shape: :point},
-               %{y: 500_254, x: 818_608, shape: :point}
-             ]
-    end
-
-    test "multiple including 180" do
-      assert intersections_with_y(@corners, 356_353) == [
-               %{y: 356_353, x: 0, shape: :point},
-               %{y: 356_353, x: 497_056..609_066, shape: :"180"},
-               %{y: 356_353, x: 818_608, shape: :point}
-             ]
-    end
-  end
-
-  describe "blocks_within_shape_based_on_intersections/1" do
-    test "example containing a point i.e., intersection through a vertical line" do
-      # [1..461_936]
-      assert blocks_within_shape_based_on_intersections([
-               %{y: 1, x: 0, shape: :point},
-               %{y: 1, x: 461_937, shape: :point}
-             ]) ==
-               461_938
-    end
-
-    test "example containing a range, i.e., intersection along a horizontal line" do
-      # []
-      assert blocks_within_shape_based_on_intersections([%{y: 0, x: 0..461_937, shape: :"180"}]) ==
-               461_938
-    end
-
-    test "multiple including zigzag" do
-      # o  zig        i              o              i           o
-      #   0..3               10             15             20
-      # |0 1 2 3|4 5 6 7 8 9|10|11 12 13 14|15|16 17 18 19|20|   
-      #   |4|       |6|     |1|     4      |1|    |4|     |1|    = 4          +  6 + 1    +  1  +   4 + 1   = 17
-      #                                                          = Range.size + (10 - 3)  + (1) + (20 - 15)
-      #                                                          = start at 0 end at 10, start at 15 end at 20 => (10-0+1) + (20-15)+1
-      # now in 
-      # [5412..497055, 609067..818607]
-      assert blocks_within_shape_based_on_intersections([
-               # now in
-               %{y: 500_254, x: 0..5411, shape: :zigzag},
-               # now out
-               %{y: 500_254, x: 497_056, shape: :point},
-               # now in
-               %{y: 500_254, x: 609_066, shape: :point},
-               # now out
-               %{y: 500_254, x: 818_608, shape: :point}
-             ]) ==
-               497_056 - 0 + 1 + 818_608 - 609_066 + 1
-    end
-
-    test "multiple including 180" do
-      #  o        i       "180"         i          o
-      #     0             5..10                15
-      #    |0|1 2 3 4|5 6 7 8 9 10|11 12 13 14|15|
-      #    |1|   4   |     6      |     4     | 1|    =   1  +   4 + 6  +   4 + 1    = 16
-      #                                               =  (1) + (10 - 0) + (15 - 10)
-      #                                               = start at 0 end at 15 => (15-0)+1
-      # [1..497055, 609067..818607]
-      assert blocks_within_shape_based_on_intersections([
-               %{y: 356_353, x: 0, shape: :point},
-               %{y: 356_353, x: 497_056..609_066, shape: :"180"},
-               %{y: 356_353, x: 818_608, shape: :point}
-             ]) ==
-               818_608 - 0 + 1
-    end
-  end
 end
 
 ExUnit.run()
@@ -952,4 +696,4 @@ ExUnit.run()
 PartTwo.solve(puzzle_input)
 ```
 
-<!-- livebook:{"offset":29102,"stamp":{"token":"XCP.wsjRaEh92_W2DwvJ5bOgqXfkl99xOIc8ko2AEOv3V8Hjx3q9r76-HQYs59Pc6j4oPSOGL3bVwuusqWsRbeYKlBPMUfd4gDHUYj5yhjruBDVcRBVevS0","version":2}} -->
+<!-- livebook:{"offset":18558,"stamp":{"token":"XCP.FzaW6GaE2ysudfCRma2hCpxRi0AtUtmBlV71pTc4uOXpPvVHsJJlvgBplebSiyBO9bsYz3rfHDnJ4uFQ_kblkWI0aBwi05XNVHUctRvsYcI5kv7q9_A","version":2}} -->
